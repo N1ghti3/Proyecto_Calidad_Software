@@ -1,0 +1,27 @@
+# TiendaLocal — Docker Compose
+#
+# ESTADO: Fase 0 — Placeholder no funcional.
+# Los servicios todavía NO están implementados. Este archivo solo deja
+# preparada conceptualmente la orquestación prevista:
+#
+#   frontend  -> Aplicación web (React + TypeScript + Vite)
+#   backend   -> API REST (Python + FastAPI)
+#   postgres  -> Base de datos PostgreSQL
+#   nginx     -> Reverse proxy
+#
+# Flujo previsto: Frontend -> Nginx -> API REST -> PostgreSQL
+#
+# Las variables de entorno se tomarán de un archivo .env basado en .env.example.
+
+services: {}
+  # frontend:
+  #   Pendiente de implementar.
+
+  # backend:
+  #   Pendiente de implementar.
+
+  # postgres:
+  #   Pendiente de implementar.
+
+  # nginx:
+  #   Pendiente de implementar.
