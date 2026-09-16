@@ -206,13 +206,13 @@ Componentes adicionales previstos:
 
 | Integrante      | Área             | Responsabilidad                                |
 | --------------- | ---------------- | ---------------------------------------------- |
-| Brando Soto     | Frontend         | Desarrollo frontend y UX/UI                    |
+| Brandon Soto     | Frontend         | Desarrollo frontend y UX/UI                    |
 | Hedixon Cardozo | Backend          | API, lógica de negocio y base de datos         |
 | Jhon Ortiz      | DevOps / Calidad | Docker, CI/CD, testing, despliegue y seguridad |
 
 ### Detalle de responsabilidades
 
-**Brando Soto — Frontend**
+**Brandon Soto — Frontend**
 Carpeta principal: `/frontend`
 
 - Aplicación frontend.
