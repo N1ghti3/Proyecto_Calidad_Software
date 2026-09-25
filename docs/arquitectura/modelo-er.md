@@ -41,7 +41,7 @@ erDiagram
         boolean active
     }
     INVENTORY {
-        uuid variant_id PK_FK
+        uuid variant_id PK "FK a product_variant.id (relación 1:1)"
         integer stock_quantity
         timestamptz updated_at
     }
