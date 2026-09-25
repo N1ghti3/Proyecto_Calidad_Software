@@ -40,8 +40,8 @@ No necesitas saber cómo se pinta la pantalla, pero sí qué estados espera (`fr
 | Versión de la API | `v1` |
 | Fecha | 2026-09-25 |
 | Base | `ProyectoTiendaLocalCUN.pdf` v1.0 |
-| Endpoints definidos | 24 |
-| DTO definidos | 25 |
+| Endpoints definidos | 21 (numerados EP-01 … EP-24, con huecos reservados entre EP-06 y EP-10) |
+| DTO definidos | 27, en 25 secciones |
 | Códigos de error | 14 |
 
 Versionado del documento: `MAYOR.MENOR.PARCHE`. Mayor = cambio incompatible; menor = adición compatible; parche = corrección de redacción.
@@ -68,7 +68,7 @@ Reglas del procedimiento:
 
 | Versión | Fecha | Cambio | Autor |
 | --- | --- | --- | --- |
-| 1.0.0 | 2026-09-25 | Contrato inicial derivado del PDF: 24 endpoints, 25 DTO, 14 códigos de error | Equipo TiendaLocal |
+| 1.0.0 | 2026-09-25 | Contrato inicial derivado del PDF: 21 endpoints, 27 DTO, 14 códigos de error | Equipo TiendaLocal |
 
 ## Qué no está en esta carpeta
 
