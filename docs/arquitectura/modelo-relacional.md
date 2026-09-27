@@ -1,6 +1,8 @@
 # Modelo relacional (PostgreSQL)
 
-Especificación física de las entidades del [modelo ER](modelo-er.md). **Es documentación, no migración:** en esta fase no se crean tablas ni scripts (regla del alcance de la fase de ingeniería).
+Especificación física de las entidades del [modelo ER](modelo-er.md).
+
+**Este documento es la especificación; la implementación es la migración inicial de Alembic** en `backend/alembic/versions/`, y los modelos de SQLAlchemy de `backend/app/models/`. Si algo difiere entre este documento y el código, este documento es el que manda y el código es el que está mal. `database/schema.sql` es un volcado generado del esquema vigente, útil para leerlo de un tirón.
 
 Convenciones aplicadas (ver [`../api/convenciones.md`](../api/convenciones.md)):
 
@@ -12,6 +14,10 @@ Convenciones aplicadas (ver [`../api/convenciones.md`](../api/convenciones.md)):
 - toda tabla con datos mutables lleva `created_at` y `updated_at`.
 
 > `order` es palabra reservada en SQL: la tabla se llama **`order_header`** y el recurso de API sigue llamándose `order`.
+
+**Motor y extensiones** ([`../decisiones/ADR-009-migraciones-y-motor.md`](../decisiones/ADR-009-migraciones-y-motor.md)): PostgreSQL 16, con `gen_random_uuid()` nativo (sin `pgcrypto`). Se instalan `unaccent` y `pg_trgm`, más la función envoltorio `f_unaccent(text)` declarada `IMMUTABLE`, necesaria para indexar la búsqueda de CA-01-2. Las migraciones se gestionan con Alembic; **nunca con `create_all()`**.
+
+**Colación** ([`../decisiones/ADR-011-colacion-y-orden-alfabetico.md`](../decisiones/ADR-011-colacion-y-orden-alfabetico.md)): el clúster se inicializa con proveedor **ICU** y locale **`es-CO`**. En consecuencia, `ORDER BY` sobre cualquier columna de texto ordena según el alfabeto español sin necesidad de anotar la consulta ni la columna, y `upper()`/`lower()` manejan correctamente los acentos. La colación es determinista, de modo que `LIKE` y las restricciones de formato con expresiones regulares operan con normalidad. Esto es independiente de la búsqueda sin tildes, que sigue su propio camino con `f_unaccent`.
 
 ---
 
@@ -46,9 +52,27 @@ Convenciones aplicadas (ver [`../api/convenciones.md`](../api/convenciones.md)):
 | `created_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Alta |
 | `updated_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Última modificación |
 
-Índices: `UNIQUE(slug)`; `INDEX(category_id)`; `INDEX(published)`; índice de texto sobre `name` sin distinción de mayúsculas ni tildes, para REQ-01.3 (CA-01-2).
+Índices: `UNIQUE(slug)`; `INDEX(category_id)`; `INDEX(published)`; e índice GIN de trigramas sobre `lower(f_unaccent(name))` para la búsqueda sin distinción de mayúsculas ni tildes de REQ-01.3 (CA-01-2). El detalle del índice y de la función envoltorio está en ADR-009.
 
 Regla: el precio vive en el producto, no en la variante — el PDF no contempla precios distintos por talla. Si el negocio lo pidiera, sería un cambio de contrato (ver `../api/README.md`, sección de control de cambios).
+
+---
+
+## `size_catalog`
+
+**Propósito:** catálogo de tallas ofrecidas. Permite validar el filtro por talla y poblar el desplegable del panel ([`../decisiones/ADR-008-catalogo-tallas.md`](../decisiones/ADR-008-catalogo-tallas.md)).
+
+| Campo | Tipo | Obligatorio | Nullable | PK | FK | Unique | Default | Restricciones | Descripción |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `code` | varchar(20) | Sí | No | Sí | — | Sí | — | mayúsculas | Valor que viaja por la API (`M`, `ÚNICA`) |
+| `label` | varchar(40) | Sí | No | — | — | No | — | no vacío | Etiqueta visible |
+| `position` | smallint | Sí | No | — | — | Sí | — | `position >= 0` | Orden de presentación, no alfabético |
+| `active` | boolean | Sí | No | — | — | No | `true` | — | Permite retirar una talla sin borrar el histórico |
+| `created_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Alta |
+
+Índices: `UNIQUE(position)`.
+
+Semilla incluida en la **migración inicial**, no en los datos de prueba: `XS`, `S`, `M`, `L`, `XL`, `XXL` y `ÚNICA`, esta última para los productos de pieza única previstos en ADR-002. Sin catálogo sembrado no pueden crearse variantes.
 
 ---
 
@@ -61,11 +85,11 @@ Regla: el precio vive en el producto, no en la variante — el PDF no contempla 
 | `id` | uuid | Sí | No | Sí | — | Sí | `gen_random_uuid()` | — | Identificador |
 | `product_id` | uuid | Sí | No | — | `product.id` | No | — | `ON DELETE RESTRICT` | Producto padre |
 | `sku` | varchar(40) | Sí | No | — | — | Sí | — | mayúsculas, `[A-Z0-9-]+` | Código interno |
-| `size` | varchar(20) | Sí | No | — | — | No | — | valor del catálogo de tallas | Talla |
+| `size` | varchar(20) | Sí | No | — | `size_catalog.code` | No | — | `ON DELETE RESTRICT`; la talla debe estar activa (ADR-008) | Talla |
 | `active` | boolean | Sí | No | — | — | No | `true` | — | Variante ofrecida actualmente |
 | `created_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Alta |
 
-Índices y restricciones: `UNIQUE(sku)`; `UNIQUE(product_id, size)` (una talla no se repite dentro del producto); `INDEX(product_id)`.
+Índices y restricciones: `UNIQUE(sku)`; `UNIQUE(product_id, size)` (una talla no se repite dentro del producto); `INDEX(product_id)`; `INDEX(size)` para el filtro de EP-01.
 
 ---
 
@@ -96,10 +120,15 @@ Regla: el precio vive en el producto, no en la variante — el PDF no contempla 
 | `url` | text | Sí | No | — | — | No | — | ruta relativa servida por C2/C5 | Ubicación del archivo optimizado |
 | `alt_text` | varchar(160) | Sí | No | — | — | No | — | no vacío | Texto alternativo — obligatorio por RNF-03 |
 | `position` | smallint | Sí | No | — | — | No | `0` | `position >= 0` | Orden de presentación |
+| `width` | smallint | Sí | No | — | — | No | — | `width > 0` | Ancho en píxeles de la versión optimizada |
+| `height` | smallint | Sí | No | — | — | No | — | `height > 0` | Alto en píxeles de la versión optimizada |
+| `created_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Alta |
 
 Índices: `UNIQUE(product_id, position)`; `INDEX(product_id)`.
 
 `alt_text` es obligatorio en el esquema porque la accesibilidad (RNF-03) exige texto alternativo en las imágenes del catálogo; dejarlo opcional trasladaría un requisito verificable a la buena voluntad de quien carga el producto.
+
+`width` y `height` se almacenan porque el contrato los declara obligatorios en `ProductImageResponse`: el frontend los necesita para reservar el espacio de la imagen y evitar saltos de diseño (RNF-01). Se conocen al cargar, porque RN-22 obliga a redimensionar en el servidor; leerlos del archivo en cada consulta sería trabajo repetido sin motivo.
 
 ---
 
@@ -125,6 +154,8 @@ Regla: el precio vive en el producto, no en la variante — el PDF no contempla 
 | `updated_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Último cambio de estado |
 
 Índices: `UNIQUE(order_number)`; `INDEX(status, created_at DESC)` para el panel (REQ-07.1); `INDEX(lower(customer_email))` para la consulta del comprador (RN-18).
+
+`order_number` se genera en la capa de servicio, **antes de abrir la transacción**, como `TL-` más la fecha UTC más cinco caracteres aleatorios de un alfabeto de 32 símbolos sin `0`, `1`, `I` ni `O`. No se usa una secuencia: las convenciones prohíben exponer identificadores que permitan enumerar órdenes, y un contador sería además una fila bloqueada dentro de la transacción crítica. La restricción `UNIQUE` es la garantía final ([`../decisiones/ADR-010-numero-orden-y-roles.md`](../decisiones/ADR-010-numero-orden-y-roles.md)).
 
 **Campos que deliberadamente no existen:** ningún dato de tarjeta, medio de pago, documento de identidad, fecha de nacimiento ni geolocalización. Cada columna personal declara su finalidad (RN-17, RNF-04).
 
@@ -181,11 +212,14 @@ Regla: el precio vive en el producto, no en la variante — el PDF no contempla 
 | `source` | varchar(20) | Sí | No | — | — | No | — | `IN ('AJUSTE_MANUAL','ORDEN','CANCELACION')` | Origen del cambio (REQ-06.3) |
 | `old_value` | varchar(120) | No | Sí | — | — | No | `NULL` | — | Valor anterior |
 | `new_value` | varchar(120) | Sí | No | — | — | No | — | — | Valor nuevo |
+| `reason` | varchar(120) | No | Sí | — | — | No | `NULL` | `CHECK (source = 'ORDEN' OR reason IS NOT NULL)` | Motivo informado por el administrador |
 | `created_at` | timestamptz | Sí | No | — | — | — | `now()` | — | Fecha del cambio |
 
 Índices: `INDEX(entity_type, entity_id, created_at DESC)`; `INDEX(created_at DESC)`.
 
-Tabla de solo anexado (RN-25): la aplicación no expone actualización ni borrado.
+`reason` es obligatorio salvo cuando el origen es una orden del comprador: el ajuste manual (EP-15) y la cancelación (EP-18) lo exigen en su petición, y el contrato ya lo declara en `AuditEntryResponse`. La restricción lo hace verificable en la base y no solo en el código (CA-06-0, CP-50).
+
+Tabla de solo anexado (RN-25). No basta con que la aplicación no exponga la operación: el rol con el que la aplicación se conecta **no tiene privilegio de `UPDATE` ni de `DELETE`** sobre esta tabla. Ver la sección de roles y ADR-010.
 
 ---
 
@@ -206,6 +240,19 @@ Tabla de solo anexado (RN-25): la aplicación no expone actualización ni borrad
 | `sent_at` | timestamptz | No | Sí | — | — | — | `NULL` | — | Envío efectivo |
 
 Índices: `INDEX(order_id)`; `INDEX(status)` para el panel (RN-15).
+
+---
+
+## Roles de base de datos
+
+El esquema se opera con dos roles distintos ([`../decisiones/ADR-010-numero-orden-y-roles.md`](../decisiones/ADR-010-numero-orden-y-roles.md)):
+
+| Rol | Uso | Privilegios |
+| --- | --- | --- |
+| `tiendalocal_owner` | Migraciones de Alembic y creación de extensiones | Propietario del esquema |
+| `tiendalocal_app` | Conexión de la aplicación en ejecución | Lectura y escritura sobre las tablas operativas; sobre `audit_log`, únicamente `SELECT` e `INSERT` |
+
+En consecuencia, el archivo de variables de entorno declara **dos cadenas de conexión**: una para la aplicación y otra para las migraciones. Que la aplicación arranque con el rol propietario anularía la protección sin aviso, de modo que CP-82 verifica con qué rol se conecta, no solo que la tabla esté protegida.
 
 ---
 

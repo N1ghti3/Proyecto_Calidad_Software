@@ -9,6 +9,7 @@ Corresponde al entregable de **OE-2** («modelo entidad-relación») y a los com
 ```mermaid
 erDiagram
     CATEGORY ||--o{ PRODUCT : clasifica
+    SIZE_CATALOG ||--o{ PRODUCT_VARIANT : tipifica
     PRODUCT ||--o{ PRODUCT_VARIANT : "se vende como"
     PRODUCT ||--o{ PRODUCT_IMAGE : ilustra
     PRODUCT_VARIANT ||--|| INVENTORY : "tiene existencias"
@@ -21,6 +22,12 @@ erDiagram
         uuid id PK
         text name
         text slug UK
+    }
+    SIZE_CATALOG {
+        text code PK
+        text label
+        smallint position UK
+        boolean active
     }
     PRODUCT {
         uuid id PK
@@ -37,7 +44,7 @@ erDiagram
         uuid id PK
         uuid product_id FK
         text sku UK
-        text size
+        text size FK "FK a size_catalog.code"
         boolean active
     }
     INVENTORY {
@@ -51,6 +58,8 @@ erDiagram
         text url
         text alt_text
         integer position
+        smallint width
+        smallint height
     }
     ORDER_HEADER {
         uuid id PK
@@ -93,6 +102,7 @@ erDiagram
         text source
         text old_value
         text new_value
+        text reason
         timestamptz created_at
     }
     NOTIFICATION {
@@ -111,6 +121,7 @@ erDiagram
 | Entidad | Propósito | Requisitos | Reglas |
 | --- | --- | --- | --- |
 | `CATEGORY` | Agrupar productos para el filtro del catálogo. | REQ-01 | RN-04 |
+| `SIZE_CATALOG` | Tallas ofrecidas; permite validar el filtro y poblar el desplegable del panel. | REQ-01, RNF-05 | RN-04, RN-05 |
 | `PRODUCT` | Artículo ofrecido, con su estado de publicación. | REQ-01, REQ-06 | RN-01, RN-21, RN-23 |
 | `PRODUCT_VARIANT` | Unidad vendible (talla). Referencia de carrito y órdenes. | REQ-01, REQ-02, REQ-03 | RN-05 |
 | `INVENTORY` | Existencias por variante: fuente única de verdad. | REQ-03, REQ-06, RNF-02 | RN-02, RN-09, RN-10 |
@@ -120,6 +131,8 @@ erDiagram
 | `ADMIN_USER` | Operador autenticado del panel. | REQ-06, RNF-04 | RN-19, RN-20 |
 | `AUDIT_LOG` | Evidencia de variaciones de inventario y estados (C6). | REQ-06, REQ-07 | RN-24, RN-25, RN-27 |
 | `NOTIFICATION` | Estado de los avisos de confirmación. | REQ-05 | RN-14, RN-15 |
+
+La entidad `SIZE_CATALOG` se incorporó en [`../decisiones/ADR-008-catalogo-tallas.md`](../decisiones/ADR-008-catalogo-tallas.md): el modelo hablaba de un «catálogo de tallas» que no existía, de modo que el filtro por talla no tenía contra qué validarse. `ORDER_ITEM.size` **no** la referencia: conserva una copia congelada del momento de la compra (RN-28), para que retirar una talla no altere órdenes pasadas.
 
 ## Decisión estructural: el inventario pertenece a la variante
 
