@@ -1,7 +1,8 @@
 # TiendaLocal
 
-> **Estado del proyecto:** Fase 0 — Inicialización del repositorio.
-> Este repositorio aún no contiene código de la aplicación.
+> **Estado del proyecto:** iteración I-3 — capa de datos.
+> Están implementados el servicio de base de datos de `docker-compose.yml` y el
+> esquema completo como migración de Alembic. Todavía no hay API ni interfaz.
 
 ## Descripción
 
@@ -252,9 +253,35 @@ Carpetas principales: `/tests`, `/nginx`, `/.github`, `/docs/despliegue`
 
 ## Estado del proyecto
 
-**Fase 0 — Inicialización del repositorio**
+**Iteración I-3 — capa de datos**
 
-Se creó únicamente la estructura base, la documentación inicial y la configuración básica de Git. No existen funcionalidades, dependencias instaladas, servicios Docker funcionales ni pipelines de CI/CD.
+Lo que existe y funciona:
+
+- el servicio de PostgreSQL 16 de `docker-compose.yml`, con volumen con nombre y verificación de salud;
+- el esquema completo —once tablas, restricciones, índices y catálogo de tallas sembrado— como migración de Alembic en `backend/alembic/`;
+- los modelos de SQLAlchemy de los que esa migración se autogeneró, que permiten detectar divergencias entre el código y el esquema real con `alembic check`;
+- el rol de aplicación con privilegios acotados, que hace de la auditoría una tabla de solo anexado en el propio motor;
+- el catálogo de demostración en `database/seeds/`: doce productos publicados con imagen, más los estados interesantes (agotados, sin publicar, sin variantes activas).
+
+Lo que **no** existe todavía: API REST, interfaz web, proxy inverso y canal de integración continua.
+
+### Puesta en marcha de la base de datos
+
+```bash
+cp .env.example .env          # y rellenar las contraseñas
+docker compose up -d          # levanta PostgreSQL 16
+docker compose ps             # debe decir: running (healthy)
+
+cd backend
+python -m venv .venv && source .venv/bin/activate   # en Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+alembic upgrade head          # crea las once tablas y siembra las tallas
+
+cd ..
+backend/.venv/bin/python database/seeds/sembrar_desarrollo.py   # catálogo de demostración
+```
+
+Detalle en [`backend/README.md`](backend/README.md) y [`database/README.md`](database/README.md).
 
 ## Estructura del repositorio
 
@@ -262,7 +289,15 @@ Se creó únicamente la estructura base, la documentación inicial y la configur
 TiendaLocal/
 ├── frontend/
 ├── backend/
+│   ├── alembic/
+│   │   └── versions/
+│   └── app/
+│       ├── core/
+│       ├── db/
+│       └── models/
 ├── database/
+│   ├── seeds/
+│   └── schema.sql
 ├── nginx/
 ├── tests/
 │   ├── unit/
@@ -287,7 +322,10 @@ TiendaLocal/
 | --- | --- |
 | `frontend/` | Aplicación web para compradores y panel administrativo (React + TypeScript + Vite). |
 | `backend/` | API REST y lógica de negocio (Python + FastAPI). |
-| `database/` | Recursos de PostgreSQL: esquema, migraciones y datos de prueba. |
+| `backend/alembic/` | Migraciones del esquema. Viven aquí, junto al backend, porque Alembic necesita importar los modelos de SQLAlchemy ([ADR-009](docs/decisiones/ADR-009-migraciones-y-motor.md)). |
+| `backend/app/models/` | Modelos de SQLAlchemy: las once tablas del [modelo relacional](docs/arquitectura/modelo-relacional.md). |
+| `database/seeds/` | Datos de siembra de desarrollo y demostración. No son parte del esquema. |
+| `database/schema.sql` | Volcado del esquema vigente. **Artefacto generado** desde las migraciones, para leerlo de un tirón; nunca se edita a mano. |
 | `nginx/` | Configuración del reverse proxy. |
 | `tests/unit/` | Pruebas unitarias. |
 | `tests/integration/` | Pruebas de integración entre componentes. |
