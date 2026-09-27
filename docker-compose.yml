@@ -1,27 +1,66 @@
 # TiendaLocal — Docker Compose
 #
-# ESTADO: Fase 0 — Placeholder no funcional.
-# Los servicios todavía NO están implementados. Este archivo solo deja
-# preparada conceptualmente la orquestación prevista:
+# ESTADO: iteración I-3. Solo el servicio de base de datos está implementado.
+# Los servicios de frontend, backend y proxy inverso se agregarán cuando exista
+# su código; hasta entonces permanecen comentados para no prometer lo que no hay.
 #
-#   frontend  -> Aplicación web (React + TypeScript + Vite)
-#   backend   -> API REST (Python + FastAPI)
-#   postgres  -> Base de datos PostgreSQL
-#   nginx     -> Reverse proxy
+# Flujo previsto:  Frontend -> Nginx -> API REST -> PostgreSQL
 #
-# Flujo previsto: Frontend -> Nginx -> API REST -> PostgreSQL
+# Las variables se toman del archivo .env de esta misma carpeta, creado a partir
+# de .env.example. El archivo .env nunca se versiona (riesgo R-07).
 #
-# Las variables de entorno se tomarán de un archivo .env basado en .env.example.
+# Versión del motor fijada por ADR-009: una base que aquí es 16 y en el servidor
+# es otra es una fuente de fallos que nadie va a buscar ahí.
 
-services: {}
-  # frontend:
-  #   Pendiente de implementar.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tiendalocal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Toda fecha se almacena en UTC (convención del contrato de integración).
+      TZ: UTC
+      PGTZ: UTC
+      # Colación del clúster (ADR-011). Esta imagen usa musl, que no implementa
+      # las colaciones de libc: declara el locale que se le pida y ordena por
+      # bytes igual, de modo que «Ábaco» caería al final del catálogo. Con
+      # proveedor ICU el orden alfabético es correcto sin anotar ninguna
+      # consulta ni ninguna columna.
+      #
+      # ATENCIÓN: initdb solo corre en la PRIMERA inicialización del volumen.
+      # Cambiar esta línea sobre un volumen existente no tiene efecto y no
+      # avisa. Para comprobar qué usa realmente el clúster:
+      #   select datlocprovider, daticulocale from pg_database
+      #     where datname = current_database();   -- debe dar 'i' y 'es-CO'
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=es-CO --locale=C --encoding=UTF8"
+    ports:
+      # Solo se publica en la interfaz local: la base nunca queda expuesta a la red.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Volumen con nombre: los datos sobreviven a apagar o recrear el contenedor.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Permite que otros servicios esperen a que la base acepte conexiones,
+      # en lugar de arrancar contra un motor que todavía está inicializando.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # backend:
-  #   Pendiente de implementar.
+  #   Pendiente: API REST (Python + FastAPI). Dependerá de postgres con
+  #   condition: service_healthy.
 
-  # postgres:
-  #   Pendiente de implementar.
+  # frontend:
+  #   Pendiente: aplicación web (React + TypeScript + Vite).
 
   # nginx:
-  #   Pendiente de implementar.
+  #   Pendiente: proxy inverso (componente C2).
+
+volumes:
+  postgres_data:
+    name: tiendalocal_postgres_data
