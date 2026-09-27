@@ -13,6 +13,10 @@ Registro de decisiones de arquitectura. Cada decisión relevante se documenta co
 | [ADR-005](ADR-005-concurrencia.md) | Bloqueo pesimista de fila más restricción `CHECK` | Aceptada | Backend, pruebas |
 | [ADR-006](ADR-006-autenticacion.md) | Token de portador para el administrador, sin cuentas de comprador | **Pendiente** de validar en I-3 | Backend, frontend |
 | [ADR-007](ADR-007-notificaciones.md) | Notificación asíncrona con registro persistente | **Pendiente** de confirmar proveedor | Backend, DevOps |
+| [ADR-008](ADR-008-catalogo-tallas.md) | Catálogo de tallas como tabla de referencia | Aceptada | Backend, frontend |
+| [ADR-009](ADR-009-migraciones-y-motor.md) | Alembic, PostgreSQL 16 y extensiones de búsqueda | Aceptada | Backend, DevOps |
+| [ADR-010](ADR-010-numero-orden-y-roles.md) | Número de orden aleatorio y roles de base de datos | Aceptada | Backend, DevOps, calidad |
+| [ADR-011](ADR-011-colacion-y-orden-alfabetico.md) | Colación ICU `es-CO` en el clúster, para el orden alfabético | Aceptada | Backend, DevOps |
 
 ## Estados
 

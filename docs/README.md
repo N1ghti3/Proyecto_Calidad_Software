@@ -52,7 +52,7 @@ Toda propuesta del equipo que el PDF no respalde explícitamente está marcada `
 
 ### Decisiones — [`decisiones/`](decisiones/README.md)
 
-ADR-001 arquitectura · ADR-002 inventario por variante · ADR-003 convenciones · ADR-004 versionamiento · ADR-005 concurrencia · ADR-006 autenticación (pendiente) · ADR-007 notificaciones (pendiente).
+ADR-001 arquitectura · ADR-002 inventario por variante · ADR-003 convenciones · ADR-004 versionamiento · ADR-005 concurrencia · ADR-006 autenticación (pendiente) · ADR-007 notificaciones (pendiente) · ADR-008 catálogo de tallas · ADR-009 migraciones y motor · ADR-010 número de orden y roles de base de datos.
 
 ### Despliegue — [`despliegue/`](despliegue/)
 

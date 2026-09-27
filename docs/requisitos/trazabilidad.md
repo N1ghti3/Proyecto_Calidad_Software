@@ -94,6 +94,10 @@ Resumen; el detalle está en [`../arquitectura/reglas-negocio.md`](../arquitectu
 | ADR-005 Concurrencia | RNF-02, REQ-03 | modelo-relacional.md, pruebas-concurrencia.md | CP-90 y variantes |
 | ADR-006 Autenticación (pendiente) | REQ-06, RNF-04 | api/contrato-api.md | CP-51, CP-82, CP-83 |
 | ADR-007 Notificaciones (pendiente) | REQ-05 | reglas-negocio.md | CP-40, CP-41 |
+| ADR-008 Catálogo de tallas | REQ-01, REQ-06, RNF-05 | modelo-er.md, modelo-relacional.md | CP-02, CP-05, CP-55 |
+| ADR-009 Migraciones y motor | REQ-01, RNF-06 | modelo-relacional.md | CP-04, CP-84 |
+| ADR-010 Número de orden y roles | REQ-03, REQ-06, RNF-04 | modelo-relacional.md | CP-22, CP-82 |
+| ADR-011 Colación y orden alfabético | REQ-01 | modelo-relacional.md, docker-compose.yml | CP-04 |
 
 ## 8. Indicadores del PDF (apartado 14) → evidencia
 
