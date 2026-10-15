@@ -108,6 +108,8 @@ de ejecutar la comparación.
 ## Hallazgo para la API
 
 `test_el_telefono_se_almacena_solo_con_digitos`: el esquema exige 7–15 dígitos
-sin `+`, pero [`docs/api/modelos.md`](../docs/api/modelos.md) acepta
-`+573001234567` en `CustomerRequest.phone`. La API deberá normalizar el teléfono
-antes de guardarlo, o la base rechazará pedidos válidos.
+sin `+`, pero el contrato aceptaba `+573001234567` en `CustomerRequest.phone`,
+de modo que la base habría rechazado pedidos válidos. Quedó resuelto en el
+[contrato 1.1.0](../docs/api/README.md#registro-de-cambios): el backend quita el
+`+` antes de guardar. Cuando exista `POST /api/v1/orders`, hace falta una prueba
+de API que envíe el teléfono con `+` y verifique que la orden se crea.
