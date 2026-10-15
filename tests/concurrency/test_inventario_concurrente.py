@@ -51,7 +51,7 @@ def comprar(conn: psycopg.Connection, lineas: list[Linea]) -> str:
     with conn.transaction():
         bloqueadas = conn.execute(
             "SELECT variant_id, stock_quantity FROM inventory "
-            "WHERE variant_id = ANY(%s) ORDER BY variant_id",
+            "WHERE variant_id = ANY(%s) ORDER BY variant_id FOR UPDATE",
             (list(por_variante),),
         ).fetchall()
         stock = dict(bloqueadas)
