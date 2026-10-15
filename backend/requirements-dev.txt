@@ -1,0 +1,7 @@
+# Dependencias para ejecutar las pruebas.
+#
+# Se separan de requirements.txt para que la imagen de la aplicación no cargue
+# herramientas de prueba (RNF-06: imagen inferior a 250 MB).
+-r requirements.txt
+
+pytest==8.4.2

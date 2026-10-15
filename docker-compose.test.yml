@@ -1,0 +1,61 @@
+# TiendaLocal — entorno de pruebas
+#
+# Levanta un PostgreSQL desechable y ejecuta toda la suite de pruebas, sin
+# necesidad de tener Python instalado:
+#
+#   docker compose -f docker-compose.test.yml run --rm pruebas
+#
+# Está aislado del entorno de desarrollo a propósito:
+#   - otro nombre de proyecto, de modo que no comparte contenedores ni red;
+#   - datos en memoria (tmpfs): al apagarlo no queda nada;
+#   - otro puerto (55432), para poder convivir con la base de desarrollo.
+#
+# Las credenciales de este archivo solo existen dentro de este contenedor
+# efímero. No son las de ningún ambiente real.
+
+name: tiendalocal-pruebas
+
+services:
+  postgres-pruebas:
+    # Misma imagen y misma colación que desarrollo (ADR-009, ADR-011): una
+    # prueba que pasa contra otro motor no prueba nada sobre este.
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: tiendalocal_owner
+      POSTGRES_PASSWORD: pruebas_owner
+      TZ: UTC
+      PGTZ: UTC
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=es-CO --locale=C --encoding=UTF8"
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      # Para quien prefiera correr pytest desde su propio Python.
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tiendalocal_owner -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  pruebas:
+    image: python:3.12-slim
+    depends_on:
+      postgres-pruebas:
+        condition: service_healthy
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+      - pip_cache:/root/.cache/pip
+    environment:
+      TEST_DATABASE_ADMIN_URL: postgresql+psycopg://tiendalocal_owner:pruebas_owner@postgres-pruebas:5432/postgres
+      TEST_APP_DB_PASSWORD: pruebas_app
+      # No escribir __pycache__ ni .pytest_cache en la carpeta del repositorio.
+      PYTHONDONTWRITEBYTECODE: "1"
+    command: >
+      sh -c "pip install --quiet --disable-pip-version-check --root-user-action=ignore
+      -r backend/requirements-dev.txt
+      && pytest -p no:cacheprovider"
+
+volumes:
+  pip_cache:
