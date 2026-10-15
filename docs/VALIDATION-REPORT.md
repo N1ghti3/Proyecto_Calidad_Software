@@ -1,6 +1,6 @@
 # Informe de validación de la fase de ingeniería
 
-- **Fecha:** 2026-09-25
+- **Fecha:** 2026-09-25 · **actualizado:** 2026-10-15 (ver [sección 9](#9-revisión-del-2026-10-15-previa-al-pull-request))
 - **Alcance auditado:** toda la carpeta `docs/` de la rama `docs/requirements-and-api-contract`
 - **Fuente contrastada:** `ProyectoTiendaLocalCUN.pdf` v1.0 (texto completo)
 - **Criterio aplicado:** criterio de aceptación de **OE-2** — «todo requisito tiene identificador, origen, prioridad y criterio de aceptación verificable; el modelo soporta los casos de uso del alcance»
@@ -16,15 +16,15 @@
 | Criterios de aceptación | 36 (22 funcionales del PDF y derivados, 6 no funcionales, 4 de objetivos, 4 de historias) | `requisitos/criterios-aceptacion.md` |
 | Historias de usuario | 20 (HU-01 … HU-20) | `requisitos/historias-usuario.md` |
 | Reglas de negocio | 29 (RN-01 … RN-29) | `arquitectura/reglas-negocio.md` |
-| Entidades de datos | 10 tablas + 7 entidades descartadas con justificación | `arquitectura/modelo-er.md`, `modelo-relacional.md` |
+| Entidades de datos | 11 tablas (incluida `size_catalog`, ADR-008) + 7 entidades descartadas con justificación | `arquitectura/modelo-er.md`, `modelo-relacional.md` |
 | Componentes | 6 internos (C1–C6) + 3 sistemas externos | `arquitectura/componentes.md` |
 | Endpoints | 21 (numerados EP-01 … EP-24) | `api/endpoints.md` |
 | DTO | 27, en 25 secciones | `api/modelos.md` |
 | Códigos de error | 14 | `api/errores.md` |
 | Pantallas con contrato de estados | 13 (P-01 … P-16) | `api/frontend-backend-contract.md` |
 | Casos de prueba | 48 (CP-01 … CP-90, con 6 variantes de concurrencia) | `pruebas/casos-prueba.md` |
-| Decisiones (ADR) | 7 (5 aceptadas, 2 pendientes) | `decisiones/` |
-| Marcas `DECISIÓN PROPUESTA` | 62 | Toda la documentación |
+| Decisiones (ADR) | 11 (9 aceptadas, 2 pendientes) | `decisiones/` |
+| Marcas `DECISIÓN PROPUESTA` | 68 | Toda la documentación |
 
 ## 2. Verificación de consistencia
 
@@ -73,7 +73,7 @@ Clasificación: **CRITICAL** (impide avanzar) · **HIGH** (debe resolverse antes
 | H-01 | **HIGH** | ADR-006 (autenticación) tiene dos puntos abiertos: función de derivación de clave concreta y comportamiento de sesión al recargar el panel | **Abierto** — fecha límite: antes de I-3 |
 | H-02 | **HIGH** | ADR-007 (notificaciones) depende de confirmar proveedor de correo gratuito, remitente verificado y qué ocurre si la cuota resulta insuficiente para REQ-05 | **Abierto** — fecha límite: antes de I-5 |
 | H-03 | **MEDIUM** | La Tabla 10 del PDF se extrae con las filas de RNF desalineadas respecto de sus identificadores. La asignación usada aquí (RNF-01 desempeño, RNF-02 fiabilidad, RNF-03 accesibilidad, RNF-04 seguridad, RNF-05 operabilidad, RNF-06 instalación) se dedujo del contenido y concuerda con las menciones cruzadas del propio documento (apartados 3.3, 12.1 y 14) | **Abierto** — confirmar con el docente en la primera retroalimentación |
-| H-04 | **MEDIUM** | El `README.md` del repositorio describe «Fase 0 — Inicialización» y su árbol no incluye `docs/api/`, `docs/arquitectura/*` ni los nuevos documentos | **Abierto** — actualizar al integrar esta rama |
+| H-04 | **MEDIUM** | El `README.md` del repositorio describe «Fase 0 — Inicialización» y su árbol no incluye `docs/api/`, `docs/arquitectura/*` ni los nuevos documentos | **Resuelto** el 2026-10-15 — el README describe la iteración I-3 e incluye `docs/api/` |
 | H-05 | **MEDIUM** | El PDF no indica si el precio puede variar por talla. El modelo lo fija en el producto | **Abierto** — validar con el propietario en la sesión de I-1; cambiarlo después sería un cambio incompatible de contrato |
 | H-06 | **MEDIUM** | El PDF identifica al «personal de apoyo» como actor, pero el sistema no define un rol propio con permisos diferenciados | **Aceptado conscientemente** — registrado como candidato a trabajo futuro (nota 2 de `historias-usuario.md`) |
 | H-07 | **LOW** | El límite de frecuencia de creación de órdenes (10/min por IP) debe ampliarse en el ambiente de pruebas para no enmascarar CP-90 | **Documentado** en `pruebas-concurrencia.md` |
@@ -136,4 +136,31 @@ La documentación cumple el criterio de aceptación de OE-2: **los 14 requisitos
 
 Los dos hallazgos **HIGH** son decisiones pendientes con fecha límite y responsable asignado, no vacíos de especificación: ninguno bloquea el trabajo de las iteraciones I-1 e I-2.
 
-No existe código de aplicación, y esta fase no lo requiere.
+No existe código de aplicación, y esta fase no lo requiere. *(Vigente al 2026-09-25; ver la sección 9.)*
+
+---
+
+## 9. Revisión del 2026-10-15, previa al Pull Request
+
+Desde la auditoría original la rama incorporó la capa de datos (modelos de SQLAlchemy, migración inicial de Alembic, PostgreSQL 16 en Docker y siembra de desarrollo) y los ADR-008 a ADR-011. Esta revisión contrasta la documentación con ese código antes de pedir la revisión del equipo.
+
+### 9.1 Hallazgos nuevos
+
+| ID | Severidad | Hallazgo | Estado |
+| --- | --- | --- | --- |
+| H-10 | **HIGH** | `CustomerRequest.phone` aceptaba `+573001234567`, pero `ck_order_header_telefono_formato` solo admite dígitos: la API habría rechazado pedidos válidos con un error 500. Lo detectaron las pruebas automatizadas de la capa de datos | **Resuelto** en el contrato 1.1.0: el backend quita el `+` antes de guardar |
+| H-11 | **MEDIUM** | ADR-008 exige que una talla inexistente en el filtro de EP-01 produzca `VALIDATION_ERROR`, pero `endpoints.md` no lo decía | **Resuelto** en el contrato 1.1.0 |
+| H-12 | **MEDIUM** | El índice de `docs/README.md` no incluía ADR-011 | **Resuelto** |
+| H-13 | **MEDIUM** | `main` tiene un workflow de plantilla (`blank.yml`) que solo imprime un saludo: no verifica nada, contra lo que exigen OE-3 y ADR-009 | **Abierto** — lo reemplaza `pruebas.yml`, que llega en el Pull Request de pruebas |
+| H-14 | **LOW** | El informe contaba 7 ADR y 10 tablas; hay 11 y 11 | **Resuelto** |
+
+### 9.2 Hallazgos anteriores que cambiaron de estado
+
+| ID | Cambio |
+| --- | --- |
+| H-01 | Avance parcial: el código implementa Argon2id para el punto 1 de ADR-006, como decisión provisional. Falta la ratificación del equipo (se propone en la revisión del Pull Request) y el punto 2 sigue abierto |
+| H-04 | Resuelto: el README describe la iteración I-3 e incluye `docs/api/` |
+
+### 9.3 Verificación automatizada
+
+Las restricciones, privilegios, migraciones y el mecanismo de concurrencia de ADR-005 tienen ahora 79 pruebas automatizadas contra PostgreSQL real, incluida CP-90 a nivel de base de datos. Viven en la rama `test/capa-de-datos` y llegan en un Pull Request aparte, encadenado a este.

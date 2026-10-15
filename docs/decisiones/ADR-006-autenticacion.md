@@ -39,6 +39,11 @@ Token de portador emitido por `POST /api/v1/auth/login` (EP-10):
 | # | Pregunta | Fecha límite | Responsable |
 | --- | --- | --- | --- |
 | 1 | Función de derivación de clave concreta y sus parámetros de costo, según lo que soporte la instancia de capa gratuita | Antes de I-3 | Hedixon |
+
+**Avance del punto 1 (2026-10-15):** `backend/app/core/seguridad.py` ya implementa **Argon2id** con los parámetros por omisión de `argon2-cffi` (recomendación del RFC 9106), y la siembra de desarrollo lo usa. El propio módulo lo declara *decisión provisional, pendiente de ratificar en este ADR*. Falta que el equipo la ratifique —se propone hacerlo en la revisión del Pull Request que integra la capa de datos— y que se compruebe el costo en la instancia de capa gratuita. Si se ratifica, el punto 1 queda cerrado; el punto 2 sigue abierto y mantiene el ADR en estado Pendiente.
+
+| # | Pregunta | Fecha límite | Responsable |
+| --- | --- | --- | --- |
 | 2 | Comportamiento al recargar la página del panel: con token solo en memoria, el administrador debe iniciar sesión de nuevo. ¿Es aceptable para RNF-05 o conviene pasar a cookie `HttpOnly`? | Antes de I-3, con la primera sesión de validación con el propietario | Brandon y Hedixon |
 
 Mientras estén abiertos, la implementación no comienza. Si el punto 2 se resuelve a favor de la cookie, se emitirá un ADR que reemplace a este.

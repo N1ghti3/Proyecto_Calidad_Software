@@ -305,6 +305,7 @@ TiendaLocal/
 │   ├── e2e/
 │   └── concurrency/
 ├── docs/
+│   ├── api/
 │   ├── arquitectura/
 │   ├── requisitos/
 │   ├── pruebas/
@@ -331,6 +332,7 @@ TiendaLocal/
 | `tests/integration/` | Pruebas de integración entre componentes. |
 | `tests/e2e/` | Pruebas de extremo a extremo. |
 | `tests/concurrency/` | Pruebas de concurrencia sobre el inventario. |
+| `docs/api/` | **Contrato de integración frontend ↔ backend, fuente oficial.** Endpoints, modelos, errores, convenciones y estados por pantalla. Índice general de la documentación en [`docs/README.md`](docs/README.md). |
 | `docs/arquitectura/` | Arquitectura, diagramas, componentes y flujo de datos. |
 | `docs/requisitos/` | Requisitos funcionales y no funcionales, criterios de aceptación y trazabilidad. |
 | `docs/pruebas/` | Estrategia de testing y resultados. |

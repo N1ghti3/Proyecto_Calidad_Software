@@ -166,7 +166,7 @@ Datos personales mínimos (RN-17). Cada campo tiene finalidad declarada.
 | --- | --- | --- | --- | --- | --- | --- |
 | `name` | string | Sí | No | 3–120 caracteres | Identificar al destinatario | `"Ana Ríos"` |
 | `email` | string | Sí | No | Formato correo, ≤ 160 | Notificación (REQ-05) y consulta de la orden | `"ana@example.com"` |
-| `phone` | string | Sí | No | 7–15 dígitos, opcional `+` | Coordinar la entrega | `"+573001234567"` |
+| `phone` | string | Sí | No | 7–15 dígitos, con `+` inicial opcional. **El backend quita el `+` antes de guardar**: la base solo admite dígitos (`ck_order_header_telefono_formato`) | Coordinar la entrega | `"+573001234567"` |
 | `address` | string | Sí | No | 5–200 caracteres | Entrega | `"Calle 45 # 12-34, apto 201"` |
 | `city` | string | Sí | No | 2–80 caracteres | Entrega | `"Bogotá D.C."` |
 
@@ -234,7 +234,7 @@ Ejemplo:
 | `customer` | object | Sí | No | Datos de entrega (ver nota) | — |
 | `customer.name` | string | Sí | No | Nombre | `"Ana Ríos"` |
 | `customer.email` | string | Sí | No | Correo | `"ana@example.com"` |
-| `customer.phone` | string | Sí | No | Teléfono | `"+573001234567"` |
+| `customer.phone` | string | Sí | No | Teléfono tal como se almacenó: solo dígitos | `"573001234567"` |
 | `customer.address` | string | Sí | No | Dirección | `"Calle 45 # 12-34"` |
 | `customer.city` | string | Sí | No | Ciudad | `"Bogotá D.C."` |
 | `simulatedCheckout` | boolean | Sí | No | Siempre `true`; el frontend muestra el aviso (RN-12) | `true` |

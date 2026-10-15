@@ -36,9 +36,9 @@ No necesitas saber cómo se pinta la pantalla, pero sí qué estados espera (`fr
 
 | Aspecto | Valor |
 | --- | --- |
-| Versión del contrato | **1.0.0** (propuesta, sin implementación) |
+| Versión del contrato | **1.1.0** (propuesta, sin implementación de la API) |
 | Versión de la API | `v1` |
-| Fecha | 2026-09-25 |
+| Fecha | 2026-10-15 |
 | Base | `ProyectoTiendaLocalCUN.pdf` v1.0 |
 | Endpoints definidos | 21 (numerados EP-01 … EP-24, con huecos reservados entre EP-06 y EP-10) |
 | DTO definidos | 27, en 25 secciones |
@@ -69,6 +69,7 @@ Reglas del procedimiento:
 | Versión | Fecha | Cambio | Autor |
 | --- | --- | --- | --- |
 | 1.0.0 | 2026-09-25 | Contrato inicial derivado del PDF: 21 endpoints, 27 DTO, 14 códigos de error | Equipo TiendaLocal |
+| 1.1.0 | 2026-10-15 | **Compatible.** EP-01: una talla inexistente en el filtro `size` produce `VALIDATION_ERROR` (ADR-008). `CustomerRequest.phone`: el backend quita el `+` antes de guardar y `OrderResponse` devuelve solo dígitos, porque el esquema lo exige (hallazgo de las pruebas de la capa de datos). | Equipo TiendaLocal |
 
 ## Qué no está en esta carpeta
 

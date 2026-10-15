@@ -115,7 +115,7 @@ Notas obligatorias: el total mostrado proviene de `totalCop`, no se calcula en e
 | `items[].quantity` | integer | JSON | Sí | 1–20 | `2` |
 | `customer.name` | string | JSON | Sí | 3–120 | `"Ana Ríos"` |
 | `customer.email` | string | JSON | Sí | Formato correo | `"ana@example.com"` |
-| `customer.phone` | string | JSON | Sí | 7–15 dígitos | `"+573001234567"` |
+| `customer.phone` | string | JSON | Sí | 7–15 dígitos, `+` inicial opcional (la respuesta lo devuelve sin `+`) | `"+573001234567"` |
 | `customer.address` | string | JSON | Sí | 5–200 | `"Calle 45 # 12-34"` |
 | `customer.city` | string | JSON | Sí | 2–80 | `"Bogotá D.C."` |
 | `dataProcessingConsent` | boolean | JSON | Sí | Debe ser `true` | `true` |
