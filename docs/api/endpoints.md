@@ -51,7 +51,7 @@ Cabeceras comunes: `Content-Type: application/json; charset=utf-8` en peticiones
 | --- | --- | --- | --- | --- |
 | `q` | string | No | — | 2–80 caracteres; busca en el nombre, sin distinción de mayúsculas ni tildes |
 | `category` | string (slug) | No | — | Debe existir; repetible |
-| `size` | string | No | — | Repetible (`?size=M&size=L`) |
+| `size` | string | No | — | Repetible (`?size=M&size=L`). Debe existir en el catálogo de tallas (ADR-008): un valor inexistente produce `VALIDATION_ERROR`, nunca una página vacía |
 | `inStock` | boolean | No | — | `true` limita a productos con unidades |
 | `sort` | string | No | `createdAt:desc` | `name`, `priceCop`, `createdAt` con `:asc`/`:desc` |
 | `page` | integer | No | 1 | ≥ 1 |
@@ -83,7 +83,7 @@ Cabeceras comunes: `Content-Type: application/json; charset=utf-8` en peticiones
 | Aspecto | Valor |
 | --- | --- |
 | **Estados HTTP** | 200 · 400 |
-| **Errores** | `VALIDATION_ERROR` (filtro, orden o paginación inválidos) |
+| **Errores** | `VALIDATION_ERROR` (filtro, orden o paginación inválidos; categoría o talla inexistentes) |
 | **Reglas de negocio** | RN-01, RN-02, RN-03, RN-04 |
 | **Requisitos** | REQ-01.1, REQ-01.3, REQ-01.4, REQ-01.5, REQ-01.6 |
 | **Historias** | HU-01, HU-02, HU-03 |
