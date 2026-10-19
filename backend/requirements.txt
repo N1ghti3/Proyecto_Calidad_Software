@@ -1,0 +1,22 @@
+# TiendaLocal — dependencias del backend
+#
+# Versiones fijadas: una base que aquí es una versión y en el servidor es otra
+# es una fuente de fallos que nadie va a buscar ahí (ADR-009).
+#
+# En esta iteración (I-3) solo está implementada la capa de datos. Las
+# dependencias de la API (FastAPI, uvicorn) se agregan cuando exista el código
+# que las use, para no declarar lo que no hay.
+
+# --- Capa de datos ---
+SQLAlchemy==2.0.43
+alembic==1.16.5
+psycopg[binary]==3.2.10
+
+# --- Configuración ---
+pydantic==2.11.9
+pydantic-settings==2.10.1
+
+# --- Derivación de contraseñas (RN-20) ---
+# Argon2id. DECISIÓN PROVISIONAL pendiente de ratificar en ADR-006; ver
+# app/core/seguridad.py para el razonamiento.
+argon2-cffi==25.1.0
