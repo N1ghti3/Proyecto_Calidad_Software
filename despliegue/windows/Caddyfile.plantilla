@@ -1,0 +1,76 @@
+# Caddy: sirve la tienda, reenvía la API y gestiona HTTPS con Let's Encrypt.
+# instalar.ps1 reemplaza {{DOMINIO}} y {{BASE}} y lo copia a <Base>\caddy\Caddyfile.
+
+{
+	# Caddy instala por omisión su CA interna en el almacén de confianza de
+	# Windows para servir `localhost`. No se quiere tocar la configuración de
+	# seguridad del sistema: la verificación local usa curl -k.
+	skip_install_trust
+
+	# Registros en JSON para poder buscarlos; los errores de Caddy van al log del servicio.
+	log {
+		output file {{BASE}}/logs/caddy.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
+
+(tienda) {
+	encode zstd gzip
+
+	header {
+		# HSTS solo tiene sentido con HTTPS, que es como se sirve esta tienda.
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Las imágenes decorativas vienen de Unsplash y las fuentes de Google
+		# Fonts; todo lo demás, del mismo origen. 'unsafe-inline' en estilos
+		# porque React escribe atributos style.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: https://images.unsplash.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
+	# La API acepta imágenes de hasta 5 MiB (EP-16); el margen deja que sea
+	# ella quien responda PAYLOAD_TOO_LARGE con el formato del contrato.
+	request_body /api/* {
+		max_size 6MB
+	}
+
+	# Caddy pone en X-Forwarded-For la IP real del cliente e ignora la que
+	# éste envíe: el límite de intentos de inicio de sesión ve IPs verdaderas.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	# Imágenes cargadas desde el panel: las escribe y las sirve la API.
+	handle /media/cargas/* {
+		reverse_proxy 127.0.0.1:8001
+		header Cache-Control "public, max-age=2592000"
+	}
+
+	handle {
+		root * {{BASE}}/actual/frontend/dist
+		# Los activos de Vite llevan huella en el nombre: se cachean un año.
+		@activos path /assets/*
+		header @activos Cache-Control "public, max-age=31536000, immutable"
+		# index.html no se cachea: es el único que conserva su nombre.
+		@indice path / /index.html
+		header @indice Cache-Control "no-cache"
+		# Las rutas de la aplicación (/catalogo, /admin/...) las resuelve React.
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+{{DOMINIO}} {
+	import tienda
+}
+
+# Acceso local para verificar desde el propio servidor (certificado de la CA
+# interna de Caddy). No es alcanzable desde fuera: solo responde a Host localhost.
+localhost {
+	import tienda
+}
