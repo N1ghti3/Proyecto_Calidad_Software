@@ -45,6 +45,41 @@ const portadas: Record<string, { image: string; subtitle: string }> = {
   "Hogar & arte": { image: photos.basket, subtitle: "Objetos con oficio y memoria" },
 };
 
+/** Imagen que degrada sin romperse cuando el archivo no existe.
+ *
+ * El catálogo guarda rutas de fotografía (`/media/productos/…`) aunque el
+ * archivo todavía no se haya subido. Un `<img>` corriente muestra entonces el
+ * ícono de imagen rota con el texto alternativo desbordando la tarjeta, que es
+ * peor que no mostrar nada: parece un fallo del sistema cuando en realidad es
+ * contenido que falta.
+ *
+ * Al fallar la carga se retira la imagen y queda el bloque de color del
+ * contenedor, que el diseño ya usa como fondo. La descripción no se pierde:
+ * pasa a `aria-label`, de modo que sigue disponible para lectores de pantalla
+ * (RNF-03) sin ocupar espacio visual.
+ */
+function Foto({ src, alt, className, onClick, loading }: {
+  src: string | null | undefined;
+  alt: string;
+  className?: string;
+  onClick?: () => void;
+  loading?: "lazy" | "eager";
+}) {
+  const [falló, setFalló] = useState(false);
+  useEffect(() => { setFalló(false); }, [src]);
+
+  if (!src || falló) {
+    return (
+      <span className={`foto-ausente ${className ?? ""}`} role="img" aria-label={alt}
+            onClick={onClick} />
+    );
+  }
+  return (
+    <img src={src} alt={alt} className={className} onClick={onClick} loading={loading}
+         onError={() => setFalló(true)} />
+  );
+}
+
 const anclaCategoria = (slug: string) => `cat-${slug}`;
 const tonos = ["clay", "sand", "sky", "sage", "peach", "rose", "lilac", "mint"];
 /** Tono visual estable derivado del identificador, para que no cambie entre cargas. */
@@ -115,8 +150,8 @@ function ProductCard({ product, saved, toggle, add, open }: {
   return (
     <article className="product-card">
       <div className={`product-image ${tono(product.id)}`}>
-        <img src={product.imageUrl ?? photos.hero} alt={product.imageAlt ?? product.name}
-             onClick={open} loading="lazy"/>
+        <Foto src={product.imageUrl} alt={product.imageAlt ?? product.name}
+              onClick={open} loading="lazy"/>
         {marca && <span className={marca.verde ? "badge green" : "badge"}>{marca.texto}</span>}
         <button className={`heart ${saved ? "saved" : ""}`} onClick={toggle}
                 aria-label={saved ? `Quitar ${product.name} de favoritos` : `Guardar ${product.name} en favoritos`}>
@@ -175,8 +210,8 @@ function Home({ productos, categorias, saved, toggle, add, abrir, go }: {
           </div>
           <div className="hero-visual">
             <div className="shape"></div><img src={photos.hero} alt="Moda urbana de nueva colección"/>
-            {productos[12] && <div className="floating one"><img src={productos[12].imageUrl ?? photos.jewels} alt=""/><span>{productos[12].name}<strong>{cop(productos[12].priceCop)}</strong></span></div>}
-            {productos[9] && <div className="floating two"><img src={productos[9].imageUrl ?? photos.woven} alt=""/><span>{productos[9].name}<strong>{cop(productos[9].priceCop)}</strong></span></div>}
+            {productos[12] && <div className="floating one"><Foto src={productos[12].imageUrl} alt={productos[12].imageAlt ?? productos[12].name}/><span>{productos[12].name}<strong>{cop(productos[12].priceCop)}</strong></span></div>}
+            {productos[9] && <div className="floating two"><Foto src={productos[9].imageUrl} alt={productos[9].imageAlt ?? productos[9].name}/><span>{productos[9].name}<strong>{cop(productos[9].priceCop)}</strong></span></div>}
             <span className="local-stamp">100%<br/>LOCAL</span>
           </div>
         </section>
@@ -366,7 +401,7 @@ function ProductDetail({ producto, cargando, relacionados, saved, toggle, agrega
 
   const variante = producto.variants.find(v => v.id === variantId) ?? null;
   const maximo = variante?.availableUnits ?? 0;
-  const imagenPrincipal = producto.images[0]?.url ?? producto.imageUrl ?? photos.hero;
+  const imagenPrincipal = producto.images[0]?.url ?? producto.imageUrl;
   const altPrincipal = producto.images[0]?.alt ?? producto.imageAlt ?? producto.name;
 
   return (
@@ -374,12 +409,12 @@ function ProductDetail({ producto, cargando, relacionados, saved, toggle, agrega
       <button className="breadcrumb" onClick={() => go("home")}>Inicio / {producto.category.name} / <b>{producto.name}</b></button>
       <div className="detail-grid">
         <div className="gallery">
-          <div className="main-photo"><img src={imagenPrincipal} alt={altPrincipal}/></div>
+          <div className="main-photo"><Foto src={imagenPrincipal} alt={altPrincipal}/></div>
           {producto.images.length > 1 && (
             <div className="thumbs">
               {producto.images.map(img => (
                 <button key={img.id} onClick={() => { /* galería: imagen principal fija por ahora */ }}>
-                  <img src={img.url} alt={img.alt ?? producto.name}/>
+                  <Foto src={img.url} alt={img.alt ?? producto.name}/>
                 </button>
               ))}
             </div>
@@ -487,7 +522,7 @@ function Cart({ items, cambiar, quitar, go }: {
         <section className="cart-list">
           {items.length ? items.map(item => (
             <article className="cart-item" key={item.variantId}>
-              <img src={item.imageUrl ?? photos.hero} alt={item.imageAlt ?? item.productName}/>
+              <Foto src={item.imageUrl} alt={item.imageAlt ?? item.productName}/>
               <div>
                 <span>{item.categoryName}</span>
                 <h3>{item.productName}</h3>
@@ -680,7 +715,7 @@ function SearchModal({ productos, close, abrir }: {
         {query && <div className="search-results">
           {matches.length ? matches.slice(0, 5).map(p => (
             <button key={p.id} onClick={() => { abrir(p); close(); }}>
-              <img src={p.imageUrl ?? photos.hero} alt=""/>
+              <Foto src={p.imageUrl} alt={p.imageAlt ?? p.name}/>
               <span><strong>{p.name}</strong><small>{p.categoryName} · {cop(p.priceCop)}</small></span>
               <Icon name="arrow"/>
             </button>
@@ -763,7 +798,7 @@ function Admin({ exit }: { exit: () => void }) {
           <div className="inventory">
             {inventario.map(v => (
               <article key={v.variantId}>
-                <img src={v.imageUrl ?? photos.hero} alt={v.productName} loading="lazy"/>
+                <Foto src={v.imageUrl} alt={v.productName} loading="lazy"/>
                 <div><strong>{v.productName}</strong><span>{v.categoryName ?? v.sku} · talla {v.size}</span></div>
                 <b>{v.priceCop ? cop(v.priceCop) : "—"}</b>
                 <span className={v.availableUnits <= 5 ? "low" : ""}>{v.availableUnits} unidades</span>
