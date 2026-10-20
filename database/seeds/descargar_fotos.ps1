@@ -84,14 +84,19 @@ if ($fallos.Count -gt 0) {
     Write-Host "comportamiento previsto cuando falta una fotografia."
 }
 
-Write-Host ""
-Write-Host "Sin fotografia adecuada encontrada, quedan con bloque de color:"
-Write-Host "  - chaleco-acolchado-frente"
-Write-Host "  - pulsera-hilo-encerado-conjunto"
-Write-Host ""
-Write-Host "Siguiente paso:   docker compose up -d --build frontend"
-Write-Host ""
-Write-Host "Si la base todavia apunta a .webp (solo la primera vez):"
-Write-Host "  docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal \"
-Write-Host "      -c \"UPDATE product_image SET url = replace(url, '.webp', '.jpg');\""
-Write-Host ""
+# Cadena literal (@' … '@): dentro no se interpreta nada, de modo que las
+# comillas del comando de SQL no necesitan escaparse. PowerShell no escapa con
+# barra invertida sino con acento grave: una comilla escapada al estilo de C
+# rompe el análisis del archivo entero antes de ejecutar una sola línea.
+Write-Host @'
+
+Sin fotografia adecuada encontrada, quedan con bloque de color:
+  - chaleco-acolchado-frente
+  - pulsera-hilo-encerado-conjunto
+
+Siguiente paso:   docker compose up -d --build frontend
+
+Si la base todavia apunta a .webp (solo hace falta la primera vez):
+  docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal -c "UPDATE product_image SET url = replace(url, '.webp', '.jpg');"
+
+'@
