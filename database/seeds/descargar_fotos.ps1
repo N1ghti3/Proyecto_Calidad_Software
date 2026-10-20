@@ -41,7 +41,9 @@ $fotos = @(
   @{ id = "photo-1778671394516-8270eac13c42"; archivo = "camiseta-basica-blanca-frente";    muestra = "camiseta blanca lisa en gancho de madera" }
   @{ id = "photo-1759572095384-1a7e646d0d4f"; archivo = "camiseta-estampada-nandu-frente";  muestra = "dos camisetas, negra y verde claro, con ramas de algodon" }
   @{ id = "photo-1780565595413-16c7bc95af74"; archivo = "camiseta-tie-dye-frente";          muestra = "camiseta tenida por anudado, fondo blanco" }
-  @{ id = "photo-1591047139829-d91aecb6caea"; archivo = "chaqueta-bomber-cara-algodon";     muestra = "chaqueta bomber cafe en gancho blanco" }
+  @{ id = "photo-1591047139829-d91aecb6caea"; archivo = "chaqueta-bomber-cara-nailon";      muestra = "chaqueta bomber cafe en gancho blanco" }
+  @{ id = "photo-1787584040385-cb228efb3484"; archivo = "chaleco-acolchado-frente";         muestra = "chaleco acolchado de bloques de color, fondo verde" }
+  @{ id = "photo-1766560359809-3a727c487fe6"; archivo = "pulsera-hilo-encerado-conjunto";   muestra = "pulseras tejidas de colores en fila" }
   @{ id = "photo-1774897796159-b295bc2a587c"; archivo = "buzo-cuello-tortuga-frente";       muestra = "buzo negro de cuello tortuga" }
   @{ id = "photo-1680292783974-a9a336c10366"; archivo = "sudadera-capucha-grafiti-frente";  muestra = "sudadera negra con capucha y texto estampado" }
   @{ id = "photo-1770239647673-1a0eb5d05a25"; archivo = "mochila-wayuu-completa";           muestra = "bolsos tejidos de colores con correas de patrones" }
@@ -60,7 +62,12 @@ $fallos = @()
 
 foreach ($f in $fotos) {
     $salida = Join-Path $destino "$($f.archivo).jpg"
-    $url = "https://images.unsplash.com/$($f.id)?auto=format&fit=crop&w=1200&q=80"
+    # 900 px de ancho y calidad 75. Las tarjetas del catálogo se muestran a
+    # unos 300 px y el detalle a unos 600; pedir 1200 descargaba entre 150 y
+    # 450 KB por fotografía —cerca de 3 MB en total— que el navegador reducía
+    # al pintarlas. A 900 el archivo baja a una fracción sin pérdida visible,
+    # y la primera carga deja de arrastrarse.
+    $url = "https://images.unsplash.com/$($f.id)?auto=format&fit=crop&w=900&q=75"
     try {
         Invoke-WebRequest -Uri $url -OutFile $salida -UseBasicParsing -TimeoutSec 40
         $kb = [math]::Round((Get-Item $salida).Length / 1KB)
@@ -90,9 +97,10 @@ if ($fallos.Count -gt 0) {
 # rompe el análisis del archivo entero antes de ejecutar una sola línea.
 Write-Host @'
 
-Sin fotografia adecuada encontrada, quedan con bloque de color:
-  - chaleco-acolchado-frente
-  - pulsera-hilo-encerado-conjunto
+Quedan con bloque de color, por ser imagenes secundarias de la galeria:
+  - camiseta-oversize-negra-espalda
+  - chaqueta-bomber-cara-algodon
+  - mochila-wayuu-detalle-gaza
 
 Siguiente paso:   docker compose up -d --build frontend
 

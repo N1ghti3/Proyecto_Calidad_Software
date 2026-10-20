@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ApiError, AVISO_PRIVACIDAD, ajustarInventario, cerrarSesion, cop, crearOrden,
-  fechaLocal, iniciarSesion, listarCatalogoCompleto, listarCategorias,
+  fechaLocal, haySesion, iniciarSesion, listarCatalogoCompleto, listarCategorias,
   obtenerInventario, obtenerOrdenesAdmin, obtenerProducto,
   type CategoryResponse, type CustomerRequest, type InventoryResponse,
   type OrderResponse, type OrderSummaryResponse, type ProductResponse,
@@ -75,12 +75,53 @@ function Foto({ src, alt, className, onClick, loading }: {
     );
   }
   return (
-    <img src={src} alt={alt} className={className} onClick={onClick} loading={loading}
+    // `loading="lazy"` por omisión: el catálogo trae más de una docena de
+    // fotografías y pedirlas todas de golpe alarga la primera carga aunque
+    // solo cuatro estén a la vista. `decoding="async"` evita además que la
+    // decodificación de cada una bloquee el hilo que pinta la página.
+    <img src={src} alt={alt} className={className} onClick={onClick}
+         loading={loading ?? "lazy"} decoding="async"
          onError={() => setFalló(true)} />
   );
 }
 
 const anclaCategoria = (slug: string) => `cat-${slug}`;
+
+/* ------------------------------------------------------------------ rutas
+ *
+ * La aplicación cambia de vista con estado interno. Sin tocar el historial
+ * del navegador, la pila queda vacía y el botón «atrás» no tiene a dónde
+ * volver: al usuario le parece que está deshabilitado. Peor aún, en un móvil
+ * el gesto de retroceder abandona el sitio en lugar de volver al catálogo.
+ *
+ * Cada vista recibe una ruta, de modo que atrás y adelante funcionan como en
+ * cualquier sitio y el detalle de un producto puede compartirse por enlace.
+ * nginx ya resuelve esas rutas con `try_files … /index.html`, y en desarrollo
+ * Vite hace lo mismo, de modo que recargar sobre una de ellas también sirve.
+ */
+const RUTAS: Record<Exclude<View, "product">, string> = {
+  home: "/",
+  favorites: "/favoritos",
+  cart: "/carrito",
+  checkout: "/pago",
+  profile: "/perfil",
+  login: "/ingresar",
+  admin: "/admin",
+};
+
+const rutaDe = (vista: View, slug?: string | null) =>
+  vista === "product" ? `/producto/${slug ?? ""}` : RUTAS[vista];
+
+/** Lee la vista que corresponde a una ruta. Devuelve también el slug cuando
+ *  la ruta es la de un detalle, para poder pedirlo al recargar o al volver. */
+function vistaDe(ruta: string): { vista: View; slug: string | null } {
+  const detalle = ruta.match(/^\/producto\/([a-z0-9-]+)\/?$/);
+  if (detalle) return { vista: "product", slug: detalle[1] };
+  const limpia = ruta.replace(/\/$/, "") || "/";
+  const par = (Object.entries(RUTAS) as [Exclude<View, "product">, string][])
+    .find(([, r]) => r === limpia);
+  return { vista: par ? par[0] : "home", slug: null };
+}
 const tonos = ["clay", "sand", "sky", "sage", "peach", "rose", "lilac", "mint"];
 /** Tono visual estable derivado del identificador, para que no cambie entre cargas. */
 const tono = (id: string) => tonos[[...id].reduce((s, c) => s + c.charCodeAt(0), 0) % tonos.length];
@@ -209,7 +250,12 @@ function Home({ productos, categorias, saved, toggle, add, abrir, go }: {
             </div>
           </div>
           <div className="hero-visual">
-            <div className="shape"></div><img src={photos.hero} alt="Moda urbana de nueva colección"/>
+            {/* La única imagen que sí conviene pedir de inmediato: es lo
+                primero que se ve y marca el momento en que la página deja de
+                parecer vacía. El resto carga de forma diferida. */}
+            <div className="shape"></div>
+            <img src={photos.hero} alt="Moda urbana de nueva colección"
+                 fetchPriority="high" decoding="async"/>
             {productos[12] && <div className="floating one"><Foto src={productos[12].imageUrl} alt={productos[12].imageAlt ?? productos[12].name}/><span>{productos[12].name}<strong>{cop(productos[12].priceCop)}</strong></span></div>}
             {productos[9] && <div className="floating two"><Foto src={productos[9].imageUrl} alt={productos[9].imageAlt ?? productos[9].name}/><span>{productos[9].name}<strong>{cop(productos[9].priceCop)}</strong></span></div>}
             <span className="local-stamp">100%<br/>LOCAL</span>
@@ -231,7 +277,8 @@ function Home({ productos, categorias, saved, toggle, add, abrir, go }: {
           <div className="category-row">
             {categorias.map((c, i) => (
               <button key={c.id} onClick={() => document.getElementById(anclaCategoria(c.slug))?.scrollIntoView({ behavior: "smooth" })}>
-                <span><img src={portadas[c.name]?.image ?? photos.hero} alt={c.name}/><b>0{i + 1}</b></span>
+                <span><img src={portadas[c.name]?.image ?? photos.hero} alt={c.name}
+                           loading="lazy" decoding="async"/><b>0{i + 1}</b></span>
                 <strong>{c.name}</strong><small>{c.productCount} productos</small>
               </button>
             ))}
@@ -904,9 +951,18 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [aviso]);
 
-  const go = (next: View) => {
+  /** Cambia de vista y deja constancia en el historial del navegador, para
+   *  que «atrás» y «adelante» funcionen. `reemplazar` sirve cuando la vista
+   *  cambia sin que el usuario lo haya pedido —un error que devuelve al
+   *  catálogo—: añadir una entrada ahí haría que «atrás» regresara a una
+   *  pantalla que falló. */
+  const go = (next: View, slug?: string | null, reemplazar = false) => {
     if (next !== "checkout") setUltimaOrden(null);
     setView(next);
+    const ruta = rutaDe(next, slug);
+    if (window.location.pathname !== ruta || reemplazar) {
+      window.history[reemplazar ? "replaceState" : "pushState"]({ vista: next, slug }, "", ruta);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const goSection = (id: string) => {
@@ -916,14 +972,50 @@ export default function App() {
 
   /** El resumen del catálogo no trae los identificadores de variante:
       el detalle se pide por slug, que es la ruta pública (EP-03). */
-  const abrir = useCallback(async (p: ProductSummaryResponse) => {
-    setDetalle(null); setCargandoDetalle(true); go("product");
-    try { setDetalle(await obtenerProducto(p.slug)); }
+  const cargarDetalle = useCallback(async (slug: string) => {
+    setDetalle(null); setCargandoDetalle(true);
+    try { setDetalle(await obtenerProducto(slug)); }
     catch (e) {
       setAviso(e instanceof Error ? e.message : "No se pudo abrir el producto");
-      go("home");
+      // replaceState y no pushState: volver atrás debe llevar a donde estaba
+      // el usuario, no a un detalle que no se pudo cargar.
+      setView("home");
+      window.history.replaceState({ vista: "home", slug: null }, "", RUTAS.home);
     } finally { setCargandoDetalle(false); }
   }, []);
+
+  const abrir = useCallback((p: ProductSummaryResponse) => {
+    go("product", p.slug);
+    void cargarDetalle(p.slug);
+  }, [cargarDetalle]);
+
+  /* Vista inicial: puede venir de un enlace compartido o de una recarga sobre
+     una ruta distinta de la raíz. Se marca la entrada actual con replaceState
+     para que el primer «atrás» ya tenga estado que leer. */
+  useEffect(() => {
+    const { vista, slug } = vistaDe(window.location.pathname);
+    // El token del panel vive en memoria y no sobrevive a una recarga, de modo
+    // que entrar directo a /admin sin sesión debe llevar al formulario.
+    const destino = vista === "admin" && !haySesion() ? "login" : vista;
+    window.history.replaceState({ vista: destino, slug }, "", rutaDe(destino, slug));
+    if (destino !== "home") setView(destino);
+    if (destino === "product" && slug) void cargarDetalle(slug);
+  }, [cargarDetalle]);
+
+  /* Atrás y adelante del navegador. */
+  useEffect(() => {
+    const alNavegar = (e: PopStateEvent) => {
+      const guardado = e.state as { vista?: View; slug?: string | null } | null;
+      const { vista, slug } = guardado?.vista
+        ? { vista: guardado.vista, slug: guardado.slug ?? null }
+        : vistaDe(window.location.pathname);
+      setUltimaOrden(null);
+      setView(vista === "admin" && !haySesion() ? "login" : vista);
+      if (vista === "product" && slug) void cargarDetalle(slug);
+    };
+    window.addEventListener("popstate", alNavegar);
+    return () => window.removeEventListener("popstate", alNavegar);
+  }, [cargarDetalle]);
 
   const toggle = (id: string) =>
     setSaved(x => x.includes(id) ? x.filter(y => y !== id) : [...x, id]);
