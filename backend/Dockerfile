@@ -69,4 +69,9 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
 r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health',timeout=4)); \
 sys.exit(0 if r.get('database')=='ok' else 1)"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers: detrás de nginx, sin esto toda petición parece venir de la
+# IP del contenedor del frontend, y el límite de intentos de inicio de sesión
+# por IP se volvería uno solo para toda la tienda. Se confía en el encabezado
+# X-Forwarded-For porque el puerto 8000 solo se publica en 127.0.0.1 y lo
+# único que llega a él por la red de Docker es nginx.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
