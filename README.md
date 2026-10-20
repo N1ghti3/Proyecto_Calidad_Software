@@ -273,13 +273,20 @@ Lo que **no** existe todavía: notificaciones por correo (REQ-05) y canal de int
 El camino corto, todo en contenedores:
 
 ```bash
-cp .env.example .env          # y rellenar las contraseñas y JWT_SECRET
-docker compose up -d --build  # PostgreSQL, API e interfaz
-docker compose ps             # los tres deben decir: running (healthy)
+cp .env.example .env            # y rellenar las contraseñas y JWT_SECRET
 
-# Crear el esquema y sembrar el catálogo de demostración
-docker compose exec backend alembic upgrade head
-docker compose exec backend python database/seeds/sembrar_desarrollo.py
+docker compose up -d postgres   # primero solo la base
+
+# Crear el esquema y sembrar el catálogo de demostración. Se usa `run --rm`,
+# que levanta un contenedor desechable, y no `exec`, que exigiría un backend
+# ya sano: su verificación de salud se conecta con el rol de la aplicación, y
+# ese rol lo crea precisamente esta migración. Con `exec` el arranque se
+# quedaría esperando a que el backend sane por algo que todavía no ha ocurrido.
+docker compose run --rm backend alembic upgrade head
+docker compose run --rm backend python database/seeds/sembrar_desarrollo.py
+
+docker compose up -d --build    # ahora sí, API e interfaz
+docker compose ps               # los tres deben decir: running (healthy)
 ```
 
 La tienda queda en **<http://localhost:8080>** y la API en <http://127.0.0.1:8000/api/v1>.
@@ -291,6 +298,50 @@ Para generar el secreto de firma del token:
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
+
+#### Si el backend queda «unhealthy»
+
+```text
+✘ Container tiendalocal-backend  Error dependency backend failed to start
+dependency failed to start: container tiendalocal-backend is unhealthy
+```
+
+Casi siempre significa que la migración no se ha ejecutado todavía: el rol
+`tiendalocal_app` con el que el backend se conecta lo crea `alembic upgrade
+head`, de modo que antes de esa migración el servicio no puede estar sano. Se
+resuelve ejecutando los dos comandos de `run --rm` de más arriba y volviendo a
+levantar.
+
+Para ver la causa real en lugar de suponerla:
+
+```bash
+docker compose logs backend --tail 40
+```
+
+La otra causa frecuente es un `.env` sin rellenar: con `JWT_SECRET` vacío la
+API se niega a emitir tokens a propósito, porque un secreto por omisión es un
+secreto conocido.
+
+#### Si falla la autenticación contra la base
+
+```text
+FATAL: password authentication failed for user "tiendalocal_owner"
+```
+
+`POSTGRES_PASSWORD` solo surte efecto en la **primera** inicialización del
+volumen, igual que la colación de ADR-011. Si se levantó el contenedor con un
+`.env` sin rellenar y después se corrigieron las contraseñas, el volumen
+conserva las antiguas: el cambio no tiene efecto y no avisa.
+
+En desarrollo, donde no hay datos que conservar, se descarta el volumen:
+
+```bash
+docker compose down -v    # el -v borra el volumen; sin él el fallo persiste
+```
+
+y se repite la puesta en marcha desde el principio. En un ambiente con datos
+reales no se borra nada: se cambia la contraseña dentro del motor con
+`ALTER ROLE ... PASSWORD`, y se ajusta el `.env` para que coincida.
 
 #### Desarrollo sin contenedores
 
