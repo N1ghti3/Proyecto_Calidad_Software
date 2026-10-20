@@ -49,6 +49,18 @@ class Settings(BaseSettings):
     # para crear ese rol; después de eso, nada más la usa.
     app_db_password: str
 
+    # Secreto de firma del token del panel (RN-19, ADR-006). Cadena vacía por
+    # omisión para que las herramientas que solo tocan la base —Alembic, la
+    # siembra— no exijan definirlo; la API sí lo valida antes de emitir el
+    # primer token, en app/core/tokens.py. Un valor por omisión real sería un
+    # secreto conocido, que es peor que no tener ninguno.
+    jwt_secret: str = ""
+
+    # Orígenes autorizados para CORS, separados por coma. En desarrollo el
+    # frontend corre en otro puerto que la API, de modo que sin esto el
+    # navegador bloquea toda petición antes de que salga.
+    cors_origenes: str = "http://localhost:5173,http://127.0.0.1:5173"
+
 
 @lru_cache
 def obtener_settings() -> Settings:

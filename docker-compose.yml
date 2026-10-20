@@ -1,10 +1,23 @@
 # TiendaLocal — Docker Compose
 #
-# ESTADO: iteración I-3. Solo el servicio de base de datos está implementado.
-# Los servicios de frontend, backend y proxy inverso se agregarán cuando exista
-# su código; hasta entonces permanecen comentados para no prometer lo que no hay.
+# ESTADO: los tres servicios están implementados y conectados.
 #
-# Flujo previsto:  Frontend -> Nginx -> API REST -> PostgreSQL
+# Flujo real:  navegador -> frontend (nginx) -> backend (FastAPI) -> PostgreSQL
+#
+# El navegador habla con un solo origen: pide la aplicación al frontend y le
+# pide también `/api/v1/...`, que nginx reenvía al backend por la red interna.
+# De ahí que el backend no publique puerto hacia la máquina salvo que se quiera
+# para depurar: no necesita ser alcanzable desde fuera.
+#
+# Puesta en marcha, desde la raíz del repositorio:
+#
+#   cp .env.example .env          # y rellenar las contraseñas y JWT_SECRET
+#   docker compose up -d --build
+#   docker compose exec backend alembic upgrade head
+#   docker compose exec backend python database/seeds/sembrar_desarrollo.py
+#
+# Después: la tienda en http://localhost:8080 y la documentación de la API en
+# http://localhost:8080/api/v1/docs
 #
 # Las variables se toman del archivo .env de esta misma carpeta, creado a partir
 # de .env.example. El archivo .env nunca se versiona (riesgo R-07).
@@ -51,15 +64,51 @@ services:
       retries: 5
       start_period: 10s
 
-  # backend:
-  #   Pendiente: API REST (Python + FastAPI). Dependerá de postgres con
-  #   condition: service_healthy.
+  backend:
+    build:
+      # Contexto en la raíz: la imagen incluye también database/seeds.
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: tiendalocal-backend
+    restart: unless-stopped
+    environment:
+      # Dentro de la red de Docker el host es el nombre del servicio, no
+      # 127.0.0.1: esa dirección sería el propio contenedor del backend, donde
+      # no hay ninguna base escuchando. Las credenciales salen del .env.
+      DATABASE_URL: postgresql+psycopg://tiendalocal_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_MIGRATION_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD}
+      # En el despliegue el navegador no habla con el backend directamente
+      # —pasa por nginx, mismo origen—, de modo que esta lista solo sirve para
+      # quien levante Vite contra este backend.
+      CORS_ORIGENES: ${FRONTEND_URL:-http://localhost:5173}
+      TZ: UTC
+    depends_on:
+      postgres:
+        # No «arrancado», sino «aceptando conexiones»: PostgreSQL tarda unos
+        # segundos en inicializar, y un backend que arranca antes falla al
+        # primer intento sin razón aparente.
+        condition: service_healthy
+    ports:
+      # Solo en la interfaz local y solo para depurar o para apuntar Vite aquí.
+      # Puede quitarse sin afectar a la tienda, que entra por el frontend.
+      - "127.0.0.1:8000:8000"
 
-  # frontend:
-  #   Pendiente: aplicación web (React + TypeScript + Vite).
-
-  # nginx:
-  #   Pendiente: proxy inverso (componente C2).
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tiendalocal-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      # 8080 y no 80: en muchas máquinas el 80 ya está ocupado, y pedir
+      # privilegios de administrador para levantar la tienda sería innecesario.
+      - "8080:80"
 
 volumes:
   postgres_data:

@@ -15,31 +15,33 @@ npm ci
 npm run dev        # http://localhost:5173
 ```
 
-Vite redirige `/api` al backend (`http://localhost:8000` por defecto). Para
+Vite redirige `/api` al backend (`http://127.0.0.1:8000` por defecto). Para
 apuntar a otro servidor:
 
 ```bash
-API_URL=http://localhost:8001 npm run dev
+API_URL=http://127.0.0.1:8001 npm run dev
 ```
 
-### Mientras el backend no esté listo
+El backend real es FastAPI y vive en [`../backend/`](../backend/). Para
+levantarlo, sigue el README de la raíz: la base de datos con Docker, las
+migraciones de Alembic y la siembra de desarrollo.
 
-`mock-api.mjs` implementa el contrato con datos en memoria. **No es el backend
-del proyecto** —el backend real es FastAPI y vive en [`../backend/`](../backend/)—
-sino una herramienta para desarrollar y probar la interfaz sin depender de que
-la API esté terminada.
+Credenciales del panel que crea la siembra: `admin@example.com`, con la
+contraseña que hayas puesto en `ADMIN_SEED_PASSWORD` dentro de `.env`.
+
+### Mientras el backend no esté disponible
+
+`mock-api.mjs` implementa el mismo contrato con datos en memoria. **No es el
+backend del proyecto**: permite desarrollar la interfaz sin depender de que la
+API esté corriendo, y sirve de **referencia ejecutable del contrato**.
 
 ```bash
 node mock-api.mjs        # http://localhost:8000/api/v1
 npm run dev              # en otra terminal
 ```
 
-Credenciales del panel en el servidor de apoyo:
-`admin@tiendalocal.co` / `tiendalocal2026`
-
-Sirve además como **referencia ejecutable del contrato**: si el frontend
-funciona contra él, funcionará contra FastAPI siempre que este respete los
-mismos nombres, formatos y códigos de error.
+Sus credenciales son `admin@tiendalocal.co` / `tiendalocal2026`, distintas a
+propósito de las del backend real para que nunca se confunda uno con otro.
 
 ---
 
