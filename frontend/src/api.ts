@@ -76,6 +76,9 @@ export type CartValidationResponse = {
     available: boolean;
     unitPriceCop: number;
   }[];
+  /** Total de las líneas satisfacibles; el carrito lo muestra tal cual. */
+  totalCop: number;
+  checkedAt: string;
 };
 
 export type CustomerRequest = {
@@ -92,16 +95,20 @@ export type OrderItemResponse = {
   size: string;
   quantity: number;
   unitPriceCop: number;
-  subtotalCop?: number;
+  lineTotalCop: number;
 };
+
+export type EstadoOrden = "CONFIRMADA" | "PREPARADA" | "ENTREGADA" | "CANCELADA";
 
 export type OrderResponse = {
   id: string;
   orderNumber: string;
-  status: "CONFIRMADA" | "PREPARADA" | "ENTREGADA" | "CANCELADA";
+  status: EstadoOrden;
   items: OrderItemResponse[];
   totalCop: number;
+  /** En la consulta pública (EP-06) llega enmascarado: `a***@correo.com`. */
   customer: CustomerRequest;
+  simulatedCheckout?: boolean;
   createdAt?: string;
 };
 
@@ -121,14 +128,50 @@ export type InventoryResponse = {
   productName: string;
   sku: string;
   size: string;
-  availableUnits: number;
+  /** Mismo nombre que recibe el ajuste (EP-15): el panel lee y escribe un campo. */
+  stockQuantity: number;
+  updatedAt?: string | null;
   priceCop?: number;
   categoryName?: string;
   imageUrl?: string | null;
   published?: boolean;
+  lowStock?: boolean;
 };
 
-export type LoginResponse = { accessToken: string; tokenType?: string; expiresIn?: number };
+export type AdminUserResponse = { id: string; email: string; fullName: string };
+
+export type LoginResponse = {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: AdminUserResponse;
+};
+
+export type AdminProductSummaryResponse = ProductSummaryResponse & { published: boolean };
+
+export type AuditEntryResponse = {
+  id: string;
+  entityType: "INVENTORY" | "ORDER" | "PRODUCT";
+  entityId: string;
+  action: "STOCK_CHANGE" | "STATUS_CHANGE" | "PUBLISH_CHANGE";
+  source: "AJUSTE_MANUAL" | "ORDEN" | "CANCELACION";
+  oldValue: string | null;
+  newValue: string;
+  /** Nombre del administrador; null cuando el cambio lo originó una compra. */
+  performedBy: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type NotificationResponse = {
+  id: string;
+  orderId: string;
+  recipientType: "COMPRADOR" | "ADMINISTRADOR";
+  recipient: string;
+  status: "PENDIENTE" | "ENVIADA" | "FALLIDA";
+  attempts: number;
+  createdAt: string;
+};
 
 /* ------------------------------------------------------------- errores */
 
@@ -164,9 +207,17 @@ export class ApiError extends Error {
 
 /* ------------------------------------------------------------- sesión */
 
+/* El token vive solo en memoria, a propósito: guardado en localStorage
+   quedaría al alcance de cualquier script inyectado (XSS). El costo es que
+   recargar la página cierra la sesión; las rutas del panel lo resuelven
+   llevando al inicio de sesión y devolviendo después a la misma sección. */
 let tokenAdmin: string | null = null;
-export const fijarToken = (t: string | null) => { tokenAdmin = t; };
+let usuarioAdmin: AdminUserResponse | null = null;
+export const fijarToken = (t: string | null, usuario: AdminUserResponse | null = null) => {
+  tokenAdmin = t; usuarioAdmin = t ? usuario : null;
+};
 export const haySesion = () => tokenAdmin !== null;
+export const usuarioActual = () => usuarioAdmin;
 
 /* --------------------------------------------------------- transporte */
 
@@ -203,6 +254,15 @@ async function pedir<T>(ruta: string, opciones: RequestInit & { auth?: boolean }
   return cuerpo as T;
 }
 
+/** Recorre todas las páginas de una colección. El contrato limita pageSize
+ *  a 50; se piden en serie para no saturar al servidor. */
+async function recorrer<T>(pagina: (n: number) => Promise<Page<T>>): Promise<T[]> {
+  const primera = await pagina(1);
+  const todos = [...primera.items];
+  for (let n = 2; n <= primera.meta.totalPages; n += 1) todos.push(...(await pagina(n)).items);
+  return todos;
+}
+
 const consulta = (params: Record<string, string | number | boolean | undefined>) => {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -226,17 +286,8 @@ export const listarProductos = (filtros: {
  * El contrato limita pageSize a 50, así que un catálogo mayor exige
  * varias peticiones; se hacen en serie para no saturar al servidor.
  */
-export async function listarCatalogoCompleto(
-  filtros: Parameters<typeof listarProductos>[0] = {},
-): Promise<ProductSummaryResponse[]> {
-  const primera = await listarProductos({ ...filtros, page: 1, pageSize: 50 });
-  const todos = [...primera.items];
-  for (let p = 2; p <= primera.meta.totalPages; p += 1) {
-    const siguiente = await listarProductos({ ...filtros, page: p, pageSize: 50 });
-    todos.push(...siguiente.items);
-  }
-  return todos;
-}
+export const listarCatalogoCompleto = (filtros: Parameters<typeof listarProductos>[0] = {}) =>
+  recorrer(page => listarProductos({ ...filtros, page, pageSize: 50 }));
 
 /** EP-02 · GET /categories */
 export const listarCategorias = () => pedir<CategoryResponse[]>("/categories");
@@ -276,27 +327,74 @@ export async function iniciarSesion(email: string, password: string) {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
-  fijarToken(r.accessToken);
+  fijarToken(r.accessToken, r.user);
   return r;
 }
 
 export const cerrarSesion = () => fijarToken(null);
 
-/** EP-24 · GET /admin/inventory */
+/** EP-24 · GET /admin/inventory — todas las variantes activas. */
 export const obtenerInventario = () =>
-  pedir<Page<InventoryResponse>>(`/admin/inventory${consulta({ pageSize: 50 })}`, { auth: true });
+  recorrer(page => pedir<Page<InventoryResponse>>(
+    `/admin/inventory${consulta({ page, pageSize: 50, lowStockThreshold: 5 })}`, { auth: true }));
 
-/** EP-17 · GET /admin/orders */
-export const obtenerOrdenesAdmin = () =>
-  pedir<Page<OrderSummaryResponse>>(`/admin/orders${consulta({ pageSize: 50 })}`, { auth: true });
-
-/** EP-15 · PATCH /admin/variants/{id}/inventory */
-export const ajustarInventario = (variantId: string, availableUnits: number, reason?: string) =>
+/** EP-15 · PATCH /admin/variants/{id}/inventory — fija el valor final; el motivo
+ *  es obligatorio porque queda en la auditoría (RN-25). */
+export const ajustarInventario = (variantId: string, stockQuantity: number, reason: string) =>
   pedir<InventoryResponse>(`/admin/variants/${variantId}/inventory`, {
     method: "PATCH",
     auth: true,
-    body: JSON.stringify({ availableUnits, ...(reason ? { reason } : {}) }),
+    body: JSON.stringify({ stockQuantity, reason }),
   });
+
+/** EP-17 · GET /admin/orders — una página. */
+export const obtenerOrdenesAdmin = (page = 1, pageSize = 20) =>
+  pedir<Page<OrderSummaryResponse>>(`/admin/orders${consulta({ page, pageSize })}`, { auth: true });
+
+/** EP-17 recorrido completo, para las estadísticas. */
+export const obtenerTodasLasOrdenes = () => recorrer(page => obtenerOrdenesAdmin(page, 50));
+
+/** EP-23 · GET /admin/orders/{id} — sin enmascarar, para despachar. */
+export const obtenerOrdenAdmin = (id: string) =>
+  pedir<OrderResponse>(`/admin/orders/${encodeURIComponent(id)}`, { auth: true });
+
+/** EP-18 · PATCH /admin/orders/{id}/status — cancelar exige motivo. */
+export const cambiarEstadoOrden = (id: string, status: EstadoOrden, reason?: string) =>
+  pedir<OrderResponse>(`/admin/orders/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ status, ...(reason ? { reason } : {}) }),
+  });
+
+/** EP-21 · GET /admin/products — incluye los despublicados. */
+export const listarProductosAdmin = () =>
+  recorrer(page => pedir<Page<AdminProductSummaryResponse>>(
+    `/admin/products${consulta({ page, pageSize: 50, sort: "name:asc" })}`, { auth: true }));
+
+/** EP-13 · PATCH /admin/products/{id}/publish */
+export const publicarProducto = (id: string, published: boolean) =>
+  pedir<AdminProductSummaryResponse>(`/admin/products/${encodeURIComponent(id)}/publish`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ published }),
+  });
+
+/** EP-19 · GET /admin/audit-logs — solo lectura (RN-25). */
+export const obtenerAuditoria = (page = 1) =>
+  pedir<Page<AuditEntryResponse>>(`/admin/audit-logs${consulta({ page, pageSize: 20 })}`, { auth: true });
+
+/** EP-20 · GET /admin/notifications */
+export const obtenerNotificaciones = (page = 1) =>
+  pedir<Page<NotificationResponse>>(`/admin/notifications${consulta({ page, pageSize: 20 })}`, { auth: true });
+
+/** Transiciones permitidas (RN-13). El servidor las vuelve a validar; aquí
+ *  solo sirven para no ofrecer botones que de antemano se sabe que fallan. */
+export const TRANSICIONES: Record<EstadoOrden, EstadoOrden[]> = {
+  CONFIRMADA: ["PREPARADA", "CANCELADA"],
+  PREPARADA: ["ENTREGADA", "CANCELADA"],
+  ENTREGADA: [],
+  CANCELADA: [],
+};
 
 /* ----------------------------------------------------------- utilidades */
 
@@ -310,4 +408,11 @@ export const cop = (valor: number) => "$" + valor.toLocaleString("es-CO");
 export const fechaLocal = (iso: string) =>
   new Date(iso).toLocaleDateString("es-CO", {
     day: "2-digit", month: "long", year: "numeric", timeZone: "America/Bogota",
+  });
+
+/** Fecha y hora en Bogotá, para la auditoría y las notificaciones. */
+export const fechaHoraLocal = (iso: string) =>
+  new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+    timeZone: "America/Bogota",
   });

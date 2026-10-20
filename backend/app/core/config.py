@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # navegador bloquea toda petición antes de que salga.
     cors_origenes: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Límite de intentos fallidos de inicio de sesión (contrato-api.md, OWASP
+    # A07): 5 por minuto y por cuenta. El de dirección IP es más holgado para
+    # no castigar a una oficina que comparte salida a internet.
+    login_intentos_por_cuenta: int = 5
+    login_intentos_por_ip: int = 20
+    login_ventana_segundos: int = 60
+
 
 @lru_cache
 def obtener_settings() -> Settings:

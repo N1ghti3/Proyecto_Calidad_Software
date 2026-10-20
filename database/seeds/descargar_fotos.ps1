@@ -62,12 +62,13 @@ $fallos = @()
 
 foreach ($f in $fotos) {
     $salida = Join-Path $destino "$($f.archivo).jpg"
-    # 900 px de ancho y calidad 75. Las tarjetas del catálogo se muestran a
+    # 720 px de ancho y calidad 70. Las tarjetas del catálogo se muestran a
     # unos 300 px y el detalle a unos 600; pedir 1200 descargaba entre 150 y
     # 450 KB por fotografía —cerca de 3 MB en total— que el navegador reducía
-    # al pintarlas. A 900 el archivo baja a una fracción sin pérdida visible,
-    # y la primera carga deja de arrastrarse.
-    $url = "https://images.unsplash.com/$($f.id)?auto=format&fit=crop&w=900&q=75"
+    # al pintarlas. A 900/75 la página /catalogo, que muestra todas a la vez,
+    # todavía pasaba de 1,5 MB (RNF-01); a 720/70 queda por debajo sin
+    # pérdida visible al tamaño en que se pintan.
+    $url = "https://images.unsplash.com/$($f.id)?auto=format&fit=crop&w=720&q=70"
     try {
         Invoke-WebRequest -Uri $url -OutFile $salida -UseBasicParsing -TimeoutSec 40
         $kb = [math]::Round((Get-Item $salida).Length / 1KB)
@@ -104,7 +105,8 @@ Quedan con bloque de color, por ser imagenes secundarias de la galeria:
 
 Siguiente paso:   docker compose up -d --build frontend
 
-Si la base todavia apunta a .webp (solo hace falta la primera vez):
+La siembra ya registra las rutas en .jpg. Solo una base sembrada antes de
+ese cambio sigue apuntando a .webp; en ese caso, una sola vez:
   docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal -c "UPDATE product_image SET url = replace(url, '.webp', '.jpg');"
 
 '@

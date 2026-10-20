@@ -43,12 +43,14 @@ class ErrorApi(Exception):
         mensaje: str,
         estado: int,
         detalles: dict[str, Any] | None = None,
+        cabeceras: dict[str, str] | None = None,
     ) -> None:
         super().__init__(mensaje)
         self.codigo = codigo
         self.mensaje = mensaje
         self.estado = estado
         self.detalles = detalles or {}
+        self.cabeceras = cabeceras or {}
 
 
 # --------------------------------------------------------------- atajos
@@ -117,6 +119,17 @@ def conflicto(campo: str, valor: str) -> ErrorApi:
     )
 
 
+def limite_excedido(segundos: int) -> ErrorApi:
+    """429 con `Retry-After`: el cliente sabe cuánto esperar sin adivinarlo."""
+    return ErrorApi(
+        "RATE_LIMITED",
+        "Demasiados intentos. Espere un momento antes de volver a intentarlo.",
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        {"retryAfterSeconds": segundos},
+        {"Retry-After": str(segundos)},
+    )
+
+
 def transicion_invalida(actual: str, solicitado: str, permitidos: list[str]) -> ErrorApi:
     return ErrorApi(
         "INVALID_STATE_TRANSITION",
@@ -152,7 +165,7 @@ def _respuesta(peticion: Request, error: ErrorApi) -> JSONResponse:
     return JSONResponse(
         status_code=error.estado,
         content=_cuerpo(error.codigo, error.mensaje, error.detalles, id_peticion),
-        headers={"X-Request-Id": id_peticion},
+        headers={**error.cabeceras, "X-Request-Id": id_peticion},
     )
 
 

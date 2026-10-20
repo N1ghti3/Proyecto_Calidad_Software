@@ -11,6 +11,7 @@ identificador del producto no sabría qué talla descontar.
 
 from __future__ import annotations
 
+import datetime
 import uuid
 
 from pydantic import Field
@@ -82,7 +83,10 @@ class InventoryResponse(ModeloApi):
     product_name: str
     sku: str
     size: str
-    available_units: int
+    # `stockQuantity` y no `availableUnits`, como fija modelos.md: es el mismo
+    # nombre que recibe el ajuste (EP-15), así el panel lee y escribe un campo.
+    stock_quantity: int
+    updated_at: datetime.datetime | None = None
     price_cop: int | None = None
     category_name: str | None = None
     image_url: str | None = None

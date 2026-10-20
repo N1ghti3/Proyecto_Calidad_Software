@@ -28,12 +28,18 @@ class ModeloApi(BaseModel):
 
     `populate_by_name` permite construir el objeto en Python con los nombres
     snake_case y serializarlo en camelCase sin duplicar definiciones.
+
+    `extra="forbid"` cumple la regla 3 de convenciones.md: un campo desconocido
+    se rechaza con VALIDATION_ERROR. Sin ella, un `availableUnits` enviado
+    donde se esperaba `stockQuantity` se ignoraba en silencio y el error de
+    nombre entre frontend y backend no aparecía hasta producción.
     """
 
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
         from_attributes=True,
+        extra="forbid",
     )
 
 

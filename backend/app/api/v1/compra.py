@@ -9,6 +9,7 @@ recordar un rollback en cada rama de error.
 
 from __future__ import annotations
 
+import datetime
 import logging
 
 from fastapi import APIRouter, Query, status
@@ -21,7 +22,7 @@ from app.schemas.ordenes import (
     CartValidationRequest,
     CartValidationResponse,
     CreateOrderRequest,
-    CustomerRequest,
+    CustomerResponse,
     OrderItemResponse,
     OrderResponse,
 )
@@ -46,11 +47,11 @@ def _a_respuesta(orden: OrderHeader, lineas: list[OrderItem], *, enmascarar: boo
                 size=l.size,
                 quantity=l.quantity,
                 unit_price_cop=l.unit_price_cop,
-                subtotal_cop=l.line_total_cop,
+                line_total_cop=l.line_total_cop,
             )
             for l in lineas
         ],
-        customer=CustomerRequest(
+        customer=CustomerResponse(
             name=orden.customer_name,
             email=_enmascarar_correo(orden.customer_email) if enmascarar else orden.customer_email,
             phone=_enmascarar_telefono(orden.customer_phone) if enmascarar else orden.customer_phone,
@@ -80,7 +81,13 @@ def validar_carrito(peticion: CartValidationRequest, sesion: SesionDb):
     viaja en `items[].available`.
     """
     valido, lineas = servicio.validar_carrito(sesion, peticion.items)
-    return CartValidationResponse(valid=valido, items=lineas)
+    total = sum(l["unit_price_cop"] * l["requested_quantity"] for l in lineas if l["available"])
+    return CartValidationResponse(
+        valid=valido,
+        items=lineas,
+        total_cop=total,
+        checked_at=datetime.datetime.now(datetime.timezone.utc),
+    )
 
 
 @router.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)

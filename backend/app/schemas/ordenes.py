@@ -55,6 +55,10 @@ class CartLineResponse(ModeloApi):
 class CartValidationResponse(ModeloApi):
     valid: bool
     items: list[CartLineResponse]
+    # Total de las líneas satisfacibles (modelos.md). El frontend lo muestra
+    # tal cual en lugar de sumar precios por su cuenta.
+    total_cop: int
+    checked_at: datetime.datetime
 
 
 class CustomerRequest(ModeloApi):
@@ -91,6 +95,21 @@ class CustomerRequest(ModeloApi):
         return limpio
 
 
+class CustomerResponse(ModeloApi):
+    """Datos del comprador tal como salen, sin validadores de entrada.
+
+    Reutilizar `CustomerRequest` para responder hacía que la consulta pública
+    (EP-06) fallara siempre con 500: el teléfono enmascarado `********4567`
+    no pasa el validador que exige de 7 a 15 dígitos.
+    """
+
+    name: str
+    email: str
+    phone: str
+    address: str
+    city: str
+
+
 class CreateOrderRequest(ModeloApi):
     items: list[CartItemRequest] = Field(min_length=1, max_length=50)
     customer: CustomerRequest
@@ -112,7 +131,7 @@ class OrderItemResponse(ModeloApi):
     size: str
     quantity: int
     unit_price_cop: int
-    subtotal_cop: int
+    line_total_cop: int
 
 
 class OrderResponse(ModeloApi):
@@ -121,7 +140,7 @@ class OrderResponse(ModeloApi):
     status: ESTADOS
     items: list[OrderItemResponse]
     total_cop: int
-    customer: CustomerRequest
+    customer: CustomerResponse
     # RN-12: el frontend muestra el aviso de que el pago es simulado.
     simulated_checkout: bool = True
     data_processing_consent: bool = True
@@ -148,16 +167,24 @@ class LoginRequest(ModeloApi):
     password: str = Field(min_length=1, max_length=200)
 
 
-class LoginResponse(ModeloApi):
-    access_token: str
-    token_type: str = "Bearer"
-    expires_in: int
-
-
 class AdminUserResponse(ModeloApi):
     id: uuid.UUID
     email: str
     full_name: str
+
+
+class LoginResponse(ModeloApi):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    user: AdminUserResponse
+
+
+class PublishRequest(ModeloApi):
+    """EP-13. Antes era un `dict` sin validar: `{"published": "no"}` publicaba."""
+
+    published: bool
+    reason: str | None = Field(default=None, max_length=120)
 
 
 class InventoryAdjustmentRequest(ModeloApi):

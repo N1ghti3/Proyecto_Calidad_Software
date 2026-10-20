@@ -28,8 +28,8 @@ from app.api import errores
 from app.api.deps import Administrador, SesionDb
 from app.api.v1.catalogo import _a_resumen, _consulta_resumen, aplicar_filtros, aplicar_orden
 from app.api.v1.compra import _a_respuesta
-from app.models.administracion import AuditLog
-from app.models.catalogo import Inventory, Product, ProductVariant
+from app.models.administracion import AdminUser, AuditLog
+from app.models.catalogo import Inventory, Product, ProductImage, ProductVariant
 from app.models.ordenes import Notification, OrderHeader, OrderItem
 from app.schemas.catalogo import AdminProductSummaryResponse, InventoryResponse
 from app.schemas.comunes import ModeloApi, Pagina
@@ -38,6 +38,7 @@ from app.schemas.ordenes import (
     OrderResponse,
     OrderStatusUpdateRequest,
     OrderSummaryResponse,
+    PublishRequest,
 )
 
 router = APIRouter(prefix="/admin", tags=["administración"])
@@ -59,6 +60,8 @@ class AuditEntryResponse(ModeloApi):
     source: str
     old_value: str | None
     new_value: str
+    # Nombre del administrador; null cuando el cambio lo originó una compra.
+    performed_by: str | None
     reason: str | None
     created_at: datetime.datetime
 
@@ -76,16 +79,30 @@ class NotificationResponse(ModeloApi):
 # ------------------------------------------------------------- inventario
 
 
-def _fila_inventario(v, inv, p, categoria, umbral) -> InventoryResponse:
+def _primera_imagen():
+    """URL de la primera fotografía del producto, para la miniatura del panel."""
+    return (
+        select(ProductImage.url)
+        .where(ProductImage.product_id == Product.id)
+        .order_by(ProductImage.position)
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
+    )
+
+
+def _fila_inventario(v, inv, p, categoria, umbral, imagen=None) -> InventoryResponse:
     return InventoryResponse(
         variant_id=v.id,
         product_id=p.id,
         product_name=p.name,
         sku=v.sku,
         size=v.size,
-        available_units=inv.stock_quantity,
+        stock_quantity=inv.stock_quantity,
+        updated_at=inv.updated_at,
         price_cop=p.price_cop,
         category_name=categoria,
+        image_url=imagen,
         published=p.published,
         low_stock=inv.stock_quantity <= umbral,
     )
@@ -105,7 +122,7 @@ def ver_inventario(
     from app.models.catalogo import Category
 
     consulta = (
-        select(ProductVariant, Inventory, Product, Category.name)
+        select(ProductVariant, Inventory, Product, Category.name, _primera_imagen())
         .join(Inventory, Inventory.variant_id == ProductVariant.id)
         .join(Product, Product.id == ProductVariant.product_id)
         .join(Category, Category.id == Product.category_id)
@@ -124,7 +141,7 @@ def ver_inventario(
     ).all()
 
     return Pagina.construir(
-        [_fila_inventario(v, i, p, c, low_stock_threshold) for v, i, p, c in filas],
+        [_fila_inventario(v, i, p, c, low_stock_threshold, img) for v, i, p, c, img in filas],
         pagina=page,
         tamano=page_size,
         total=total,
@@ -153,14 +170,14 @@ def ajustar_inventario(
         raise errores.no_encontrado("La variante solicitada no existe")
 
     fila = sesion.execute(
-        select(ProductVariant, Product, Category.name)
+        select(ProductVariant, Product, Category.name, _primera_imagen())
         .join(Product, Product.id == ProductVariant.product_id)
         .join(Category, Category.id == Product.category_id)
         .where(ProductVariant.id == variant_id)
     ).first()
     if fila is None:
         raise errores.no_encontrado("La variante solicitada no existe")
-    variante, producto, categoria = fila
+    variante, producto, categoria, imagen = fila
 
     anterior = inventario.stock_quantity
     inventario.stock_quantity = peticion.stock_quantity
@@ -179,7 +196,7 @@ def ajustar_inventario(
         )
     )
     sesion.commit()
-    return _fila_inventario(variante, inventario, producto, categoria, 3)
+    return _fila_inventario(variante, inventario, producto, categoria, 3, imagen)
 
 
 # ----------------------------------------------------------------- órdenes
@@ -422,7 +439,7 @@ def listar_productos_admin(
 @router.patch("/products/{product_id}/publish", response_model=AdminProductSummaryResponse)
 def publicar(
     product_id: uuid.UUID,
-    cuerpo: dict,
+    cuerpo: PublishRequest,
     admin: Administrador,
     sesion: SesionDb,
 ):
@@ -432,7 +449,7 @@ def publicar(
     if producto is None:
         raise errores.no_encontrado("El producto solicitado no existe")
 
-    publicado = bool(cuerpo.get("published"))
+    publicado = cuerpo.published
     if publicado:
         # RN-21: publicar sin variantes activas dejaría en el catálogo un
         # producto que nadie puede comprar.
@@ -460,7 +477,7 @@ def publicar(
             source="AJUSTE_MANUAL",
             old_value=str(anterior).lower(),
             new_value=str(publicado).lower(),
-            reason=cuerpo.get("reason") or "Cambio de publicación desde el panel",
+            reason=cuerpo.reason or "Cambio de publicación desde el panel",
         )
     )
     sesion.commit()
@@ -488,7 +505,9 @@ def consultar_auditoria(
     """EP-19. Solo lectura: no existen endpoints de modificación ni de borrado
     de auditoría (RN-25), y el rol de la aplicación tampoco tiene el privilegio
     aunque alguien los escribiera."""
-    consulta = select(AuditLog)
+    consulta = select(AuditLog, AdminUser.full_name).outerjoin(
+        AdminUser, AdminUser.id == AuditLog.admin_user_id
+    )
     for valor, columna in (
         (entity_type, AuditLog.entity_type),
         (entity_id, AuditLog.entity_id),
@@ -499,13 +518,27 @@ def consultar_auditoria(
             consulta = consulta.where(columna == valor)
 
     total = sesion.scalar(select(func.count()).select_from(consulta.subquery())) or 0
-    filas = sesion.scalars(
+    filas = sesion.execute(
         consulta.order_by(AuditLog.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
     return Pagina.construir(
-        [AuditEntryResponse.model_validate(f) for f in filas],
+        [
+            AuditEntryResponse(
+                id=a.id,
+                entity_type=a.entity_type,
+                entity_id=a.entity_id,
+                action=a.action,
+                source=a.source,
+                old_value=a.old_value,
+                new_value=a.new_value,
+                performed_by=autor,
+                reason=a.reason,
+                created_at=a.created_at,
+            )
+            for a, autor in filas
+        ],
         pagina=page,
         tamano=page_size,
         total=total,

@@ -1,19 +1,20 @@
 """CP-90 — ninguna orden confirmada excede las existencias, vía la API real.
 
-Complementa `test_inventario_concurrente.py`. Aquella prueba ejecuta la
-transacción de ADR-005 directamente contra la base y demuestra que el mecanismo
-funciona en este motor; esta la ejecuta **a través de `POST /api/v1/orders`**,
-y demuestra que la implementación que se despliega realmente la usa.
+Complementa `test_inventario_concurrente.py` de la rama `test/capa-de-datos`
+(todavía no integrada aquí). Aquella prueba ejecuta la transacción de ADR-005
+directamente contra la base y demuestra que el mecanismo funciona en este
+motor; esta la ejecuta **a través de `POST /api/v1/orders`**, y demuestra que
+la implementación que se despliega realmente la usa.
 
 La diferencia importa. Un bloqueo correcto en una consulta suelta no prueba
 nada sobre el servicio si el servicio olvidó usarlo, lo hizo fuera de la
 transacción, o confirmó antes de verificar. Entre ambas pruebas no queda hueco.
 
-El caso de control está al final y es imprescindible: compras simultáneas con
-el bloqueo **desactivado** deben producir sobreventa. Si no la produjeran,
-significaría que las peticiones no se están solapando de verdad y los verdes de
-las demás no demostrarían nada. Una prueba de concurrencia sin control negativo
-puede estar pasando por no haber concurrencia.
+Pendiente conocido: falta un caso de control negativo —compras simultáneas con
+el bloqueo desactivado que sí produzcan sobreventa— para demostrar que las
+peticiones se solapan de verdad. La API no tiene, a propósito, ningún
+interruptor para quitar el bloqueo, así que ese control pertenece a la prueba
+de la capa de datos, donde la transacción se arma a mano.
 
 Uso:
 
