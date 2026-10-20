@@ -1,4 +1,4 @@
-# Descarga fotografías de demostración para el catálogo sembrado.
+﻿# Descarga fotografías de demostración para el catálogo sembrado.
 #
 # POR QUÉ EXISTE ESTE GUION
 # La siembra registra rutas de imagen (/media/productos/…) pero no puede traer
@@ -12,80 +12,86 @@
 # son aproximaciones para poder revisar la interfaz con contenido verosímil.
 # Antes de un uso real deben sustituirse por fotografías del propio negocio.
 #
+# Se usan las direcciones del CDN (images.unsplash.com) y no el endpoint
+# /photos/<id>/download, que dejó de ser anónimo y responde 401 sin una clave
+# de API. El CDN sí es público: es el mismo que la interfaz ya usa para el
+# banner de portada.
+#
 # USO
 #   .\database\seeds\descargar_fotos.ps1
-#   docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal `
-#       -c "UPDATE product_image SET url = replace(url, '.webp', '.jpg');"
 #   docker compose up -d --build frontend
 #
-# El UPDATE es necesario porque Unsplash entrega JPEG y la siembra registró
-# .webp. Renombrar a .webp un archivo JPEG haría que nginx declarara un tipo de
-# contenido que no corresponde, así que se ajusta la ruta en lugar del archivo.
+# El --build no es opcional: el Dockerfile copia public/ dentro de la imagen al
+# construirla, de modo que descargar los archivos sin reconstruir no cambia
+# nada en lo que sirve el contenedor.
 
 $ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $destino = Join-Path $PSScriptRoot "..\..\frontend\public\media\productos"
 New-Item -ItemType Directory -Force -Path $destino | Out-Null
 
-# slug de Unsplash  →  nombre de archivo que la siembra espera (sin extensión)
+# identificador del CDN  →  nombre de archivo que la siembra espera
 #
 # La tercera columna es lo que la fotografía muestra según su descripción en
 # Unsplash. Se deja escrita para que quien revise pueda juzgar si la
-# aproximación es aceptable sin tener que abrir cada enlace.
+# aproximación es aceptable sin tener que abrir doce enlaces.
 $fotos = @(
-  @{ id = "Wr0TpKqf26s"; archivo = "camiseta-oversize-negra-frente";      muestra = "camiseta negra de cuello redondo" }
-  @{ id = "8ACmRoleM24"; archivo = "camiseta-basica-blanca-frente";       muestra = "camiseta blanca lisa colgada de un gancho de madera" }
-  @{ id = "EFCpLBQbxIU"; archivo = "camiseta-estampada-nandu-frente";     muestra = "dos camisetas, negra y verde claro, con ramas de algodón" }
-  @{ id = "y8JrDRdwO0M"; archivo = "camiseta-tie-dye-frente";             muestra = "persona con camiseta teñida por anudado sobre fondo blanco" }
-  @{ id = "Fg15LdqpWrs"; archivo = "chaqueta-bomber-cara-algodon";        muestra = "chaqueta bomber café sostenida en un gancho blanco" }
-  @{ id = "2a4NiXPIG9I"; archivo = "buzo-cuello-tortuga-frente";          muestra = "buzo negro de cuello tortuga" }
-  @{ id = "SXpun7pdECU"; archivo = "sudadera-capucha-grafiti-frente";     muestra = "sudadera negra con capucha y texto estampado" }
-  @{ id = "J4U6Q-8vt-c"; archivo = "mochila-wayuu-completa";              muestra = "bolsos tejidos de colores con correas de patrones" }
-  @{ id = "6Tiy9BBCRKM"; archivo = "sombrero-vueltiao-superior";          muestra = "sombrero de paja" }
-  @{ id = "wpeNVgR-tcA"; archivo = "hamaca-san-jacinto-extendida";        muestra = "hamaca café" }
-  @{ id = "7JqR7Vdv8aQ"; archivo = "jarron-raquira-frente";               muestra = "jarrón de cerámica café sobre mantel blanco" }
-  @{ id = "KAx7H0jxo28"; archivo = "cinturon-cuero-repujado-detalle";     muestra = "cinturón de cuero café con hebilla plateada" }
+  @{ id = "photo-1583743814966-8936f5b7be1a"; archivo = "camiseta-oversize-negra-frente";   muestra = "camiseta negra de cuello redondo" }
+  @{ id = "photo-1778671394516-8270eac13c42"; archivo = "camiseta-basica-blanca-frente";    muestra = "camiseta blanca lisa en gancho de madera" }
+  @{ id = "photo-1759572095384-1a7e646d0d4f"; archivo = "camiseta-estampada-nandu-frente";  muestra = "dos camisetas, negra y verde claro, con ramas de algodon" }
+  @{ id = "photo-1780565595413-16c7bc95af74"; archivo = "camiseta-tie-dye-frente";          muestra = "camiseta tenida por anudado, fondo blanco" }
+  @{ id = "photo-1591047139829-d91aecb6caea"; archivo = "chaqueta-bomber-cara-algodon";     muestra = "chaqueta bomber cafe en gancho blanco" }
+  @{ id = "photo-1774897796159-b295bc2a587c"; archivo = "buzo-cuello-tortuga-frente";       muestra = "buzo negro de cuello tortuga" }
+  @{ id = "photo-1680292783974-a9a336c10366"; archivo = "sudadera-capucha-grafiti-frente";  muestra = "sudadera negra con capucha y texto estampado" }
+  @{ id = "photo-1770239647673-1a0eb5d05a25"; archivo = "mochila-wayuu-completa";           muestra = "bolsos tejidos de colores con correas de patrones" }
+  @{ id = "photo-1718909603336-62fb533e6027"; archivo = "sombrero-vueltiao-superior";       muestra = "sombrero de paja" }
+  @{ id = "photo-1567455231583-6a1b94181ef4"; archivo = "hamaca-san-jacinto-extendida";     muestra = "hamaca cafe" }
+  @{ id = "photo-1618722060945-b87f7326995b"; archivo = "jarron-raquira-frente";            muestra = "jarron de ceramica cafe sobre mantel blanco" }
+  @{ id = "photo-1624222247344-550fb60583dc"; archivo = "cinturon-cuero-repujado-detalle";  muestra = "cinturon de cuero cafe con hebilla plateada" }
 )
 
-Write-Host "Descargando $($fotos.Count) fotografías a frontend/public/media/productos/`n"
+Write-Host ""
+Write-Host "Descargando $($fotos.Count) fotografias a frontend/public/media/productos/"
+Write-Host ""
 
 $ok = 0
 $fallos = @()
 
 foreach ($f in $fotos) {
     $salida = Join-Path $destino "$($f.archivo).jpg"
-    $url = "https://unsplash.com/photos/$($f.id)/download?force=true&w=1200"
+    $url = "https://images.unsplash.com/$($f.id)?auto=format&fit=crop&w=1200&q=80"
     try {
-        Invoke-WebRequest -Uri $url -OutFile $salida -UseBasicParsing -MaximumRedirection 5
+        Invoke-WebRequest -Uri $url -OutFile $salida -UseBasicParsing -TimeoutSec 40
         $kb = [math]::Round((Get-Item $salida).Length / 1KB)
-        Write-Host ("  OK   {0,-40} {1,5} KB   {2}" -f $f.archivo, $kb, $f.muestra)
+        Write-Host ("  OK     {0,-38} {1,5} KB   {2}" -f $f.archivo, $kb, $f.muestra)
         $ok++
     }
     catch {
-        Write-Host ("  FALLA {0,-40} {1}" -f $f.archivo, $_.Exception.Message) -ForegroundColor Yellow
+        Write-Host ("  FALLA  {0,-38} {1}" -f $f.archivo, $_.Exception.Message) -ForegroundColor Yellow
+        if (Test-Path $salida) { Remove-Item $salida -Force }
         $fallos += $f.archivo
     }
 }
 
-Write-Host "`n$ok de $($fotos.Count) descargadas."
+Write-Host ""
+Write-Host "$ok de $($fotos.Count) descargadas."
 
 if ($fallos.Count -gt 0) {
-    Write-Host "`nNo se pudieron descargar: $($fallos -join ', ')" -ForegroundColor Yellow
-    Write-Host "Esos productos seguirán mostrando el bloque de color, que es el"
-    Write-Host "comportamiento previsto cuando falta una fotografía."
+    Write-Host ""
+    Write-Host "No se pudieron descargar: $($fallos -join ', ')" -ForegroundColor Yellow
+    Write-Host "Esos productos seguiran mostrando el bloque de color, que es el"
+    Write-Host "comportamiento previsto cuando falta una fotografia."
 }
 
-Write-Host @"
-
-Faltan por cubrir, sin fotografía adecuada encontrada:
-  · chaleco-acolchado-reversible
-  · pulsera-en-hilo-encerado
-
-Siguientes pasos:
-
-  docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal ``
-      -c "UPDATE product_image SET url = replace(url, '.webp', '.jpg');"
-
-  docker compose up -d --build frontend
-
-"@
+Write-Host ""
+Write-Host "Sin fotografia adecuada encontrada, quedan con bloque de color:"
+Write-Host "  - chaleco-acolchado-frente"
+Write-Host "  - pulsera-hilo-encerado-conjunto"
+Write-Host ""
+Write-Host "Siguiente paso:   docker compose up -d --build frontend"
+Write-Host ""
+Write-Host "Si la base todavia apunta a .webp (solo la primera vez):"
+Write-Host "  docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal \"
+Write-Host "      -c \"UPDATE product_image SET url = replace(url, '.webp', '.jpg');\""
+Write-Host ""
