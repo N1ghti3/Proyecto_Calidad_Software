@@ -68,6 +68,22 @@ class Settings(BaseSettings):
     login_intentos_por_ip: int = 20
     login_ventana_segundos: int = 60
 
+    # Carpeta donde se guardan las imágenes que se cargan desde el panel
+    # (EP-16). Fuera de frontend/public a propósito: esas fotos nacen en
+    # ejecución, no al construir, y nginx sirve public/ desde la imagen del
+    # contenedor. Vacía equivale a la omisión: sin ese cuidado, MEDIA_DIR=
+    # en el .env resolvía a «.» y las imágenes caían en la carpeta de trabajo.
+    media_dir: str = ""
+
+    # RN-22: límites de la carga. 5 MiB es lo que errores.md declara como
+    # ejemplo de `maxBytes`; 1200 px cubre el detalle a doble densidad.
+    imagen_max_bytes: int = 5 * 1024 * 1024
+    imagen_ancho_max: int = 1200
+
+    @property
+    def carpeta_media(self) -> Path:
+        return Path(self.media_dir) if self.media_dir.strip() else RAIZ_REPOSITORIO / "media"
+
 
 @lru_cache
 def obtener_settings() -> Settings:

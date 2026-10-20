@@ -27,6 +27,9 @@ env/
 # repositorio con imágenes que el negocio debe reemplazar por las suyas.
 frontend/public/media/productos/*.jpg
 
+# Imágenes cargadas desde el panel (EP-16) en desarrollo; ver MEDIA_DIR.
+/media/
+
 # Pruebas / cobertura (Python)
 .pytest_cache/
 .coverage

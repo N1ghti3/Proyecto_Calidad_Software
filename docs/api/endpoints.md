@@ -28,6 +28,7 @@ Modelos: [modelos.md](modelos.md) · Errores: [errores.md](errores.md) · Conven
 | EP-22 | PATCH | `/admin/products/{id}` | Administrador | Sí | REQ-06 |
 | EP-23 | GET | `/admin/orders/{id}` | Administrador | Sí | REQ-07 |
 | EP-24 | GET | `/admin/inventory` | Administrador | Sí | REQ-06 |
+| EP-25 | GET | `/admin/products/{id}` | Administrador | Sí | REQ-06 |
 
 Cabeceras comunes: `Content-Type: application/json; charset=utf-8` en peticiones con cuerpo; `Authorization: Bearer <token>` en todo `/admin` y en `/auth/me`. Toda respuesta incluye `X-Request-Id`, el mismo valor que aparece en `error.requestId`.
 
@@ -452,6 +453,21 @@ Es el mecanismo de degradación del riesgo R-08: si el correo falla, el administ
 | **Requisitos** | REQ-06.2 |
 | **Historias** | HU-15 |
 | **Pruebas** | CP-50 |
+
+## EP-25 — Detalle de producto para el panel
+
+| Campo | Valor |
+| --- | --- |
+| **Método y ruta** | `GET /api/v1/admin/products/{id}` |
+| **Path parameters** | `id` (uuid del producto) |
+| **Response 200** | `ProductResponse`, con `published` real |
+| **Estados HTTP** | 200 · 401 · 404 |
+| **Errores** | `UNAUTHENTICATED`, `NOT_FOUND` |
+| **Reglas** | RN-19 |
+| **Requisitos** | REQ-06.1 |
+| **Historias** | HU-13 |
+
+Agregado con la pantalla de edición. El detalle público (EP-03) responde 404 para un producto despublicado (RN-01), y el formulario de edición necesita leer justamente esos. Se busca por `id` y no por `slug` porque es el identificador que usan EP-13, EP-14, EP-16 y EP-22.
 
 ---
 

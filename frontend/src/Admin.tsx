@@ -13,16 +13,18 @@
  * lo anuncian mal (RNF-03).
  * ===================================================================== */
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
-  ApiError, TRANSICIONES, ajustarInventario, cambiarEstadoOrden, cop, fechaHoraLocal, fechaLocal,
+  TRANSICIONES, ajustarInventario, cambiarEstadoOrden, cop, fechaHoraLocal, fechaLocal,
   listarProductosAdmin, obtenerAuditoria, obtenerInventario, obtenerNotificaciones,
   obtenerOrdenAdmin, obtenerOrdenesAdmin, obtenerTodasLasOrdenes, publicarProducto, usuarioActual,
   type AdminProductSummaryResponse, type EstadoOrden, type InventoryResponse, type Page,
 } from "./api";
+import { Estado, mensajeDe, useCarga } from "./adminComun";
+import { EditarProducto, NuevoProducto } from "./AdminProductos";
 import { Foto, Icon } from "./componentes";
-import { Enlace, useNavegacion } from "./navegacion";
-import { ETIQUETAS_ADMIN, SECCIONES_ADMIN, rutas, type SeccionAdmin } from "./rutas";
+import { Enlace } from "./navegacion";
+import { ETIQUETAS_ADMIN, SECCIONES_ADMIN, rutas, tituloAdmin, type SeccionAdmin } from "./rutas";
 
 type RutaAdmin = { seccion: SeccionAdmin; id: string | null; pagina: number };
 
@@ -34,49 +36,6 @@ const ICONOS: Record<SeccionAdmin, string> = {
 const ETIQUETA_ESTADO: Record<EstadoOrden, string> = {
   CONFIRMADA: "Confirmada", PREPARADA: "Preparada", ENTREGADA: "Entregada", CANCELADA: "Cancelada",
 };
-
-/** Mensaje para la persona, no para el desarrollador. */
-function mensajeDe(e: unknown): string {
-  if (e instanceof ApiError && e.code === "UNAUTHENTICATED") return "Tu sesión expiró. Vuelve a iniciar sesión.";
-  if (e instanceof ApiError && e.code === "VALIDATION_ERROR") {
-    const campos = (e.details.fields as { field: string; issue: string }[] | undefined) ?? [];
-    return campos.length ? campos.map(c => `${c.field}: ${c.issue}`).join(" · ") : e.message;
-  }
-  return e instanceof Error ? e.message : "Ocurrió un error inesperado.";
-}
-
-/** Carga datos cuando cambian sus dependencias y descarta respuestas viejas:
- *  si la administradora pasa de la página 2 a la 3 antes de que la 2 llegue,
- *  la respuesta tardía no debe pisar a la nueva. */
-function useCarga<T>(cargar: () => Promise<T>, deps: unknown[]) {
-  const [datos, setDatos] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-  useEffect(() => {
-    let vigente = true;
-    setCargando(true);
-    cargar()
-      .then(d => { if (vigente) { setDatos(d); setError(null); } })
-      .catch(e => { if (vigente) { setDatos(null); setError(mensajeDe(e)); } })
-      .finally(() => { if (vigente) setCargando(false); });
-    return () => { vigente = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return { datos, setDatos, error, cargando };
-}
-
-function Estado({ cargando, error }: { cargando: boolean; error: string | null }) {
-  const { ubicacion } = useNavegacion();
-  if (error) {
-    return (
-      <div className="stock-warning admin-aviso" role="alert">
-        {error}{" "}
-        {error.startsWith("Tu sesión") && <Enlace a={rutas.ingresar(ubicacion)}>Iniciar sesión</Enlace>}
-      </div>
-    );
-  }
-  return cargando ? <div className="admin-placeholder" aria-busy="true"><h2>Cargando…</h2></div> : null;
-}
 
 function Paginacion({ seccion, meta }: { seccion: SeccionAdmin; meta: Page<unknown>["meta"] }) {
   if (meta.totalPages <= 1) return null;
@@ -305,6 +264,7 @@ function Productos({ vuelta }: { vuelta: number }) {
     <div className="inventory-head">
       <div><h2>{datos.length} productos</h2>
         <p>{datos.filter(p => p.published).length} publicados · {datos.filter(p => !p.published).length} ocultos</p></div>
+      <Enlace a={rutas.admin("productos", { id: "nuevo" })} className="admin-primary"><Icon name="plus"/> Nuevo producto</Enlace>
     </div>
     <p className="admin-vivo" role="status" aria-live="polite">{aviso}</p>
     {fallo && <p className="stock-warning" role="alert">{fallo}</p>}
@@ -312,7 +272,8 @@ function Productos({ vuelta }: { vuelta: number }) {
       {datos.map(p => (
         <article key={p.id}>
           <Foto src={p.imageUrl} alt="" loading="lazy"/>
-          <div><strong>{p.name}</strong><span>{p.categoryName} · {p.sizes.join(", ")}</span></div>
+          <div><strong><Enlace a={rutas.admin("productos", { id: p.id })}>{p.name}</Enlace></strong>
+            <span>{p.categoryName} · {p.sizes.join(", ") || "sin tallas"}</span></div>
           <b>{cop(p.priceCop)}</b>
           <span className={`estado ${p.published ? "estado-entregada" : "estado-cancelada"}`}>
             {p.published ? "Publicado" : "Oculto"}
@@ -425,7 +386,7 @@ export default function Admin({ ruta, salir }: { ruta: RutaAdmin; salir: () => v
   const [vuelta, setVuelta] = useState(0);
   const usuario = usuarioActual();
   const iniciales = (usuario?.fullName ?? "Admin").split(/\s+/).map(p => p[0]).slice(0, 2).join("").toUpperCase();
-  const titulo = ruta.id ? "Detalle del pedido" : ETIQUETAS_ADMIN[ruta.seccion];
+  const titulo = tituloAdmin(ruta.seccion, ruta.id);
 
   return (
     <div className="admin-shell">
@@ -454,7 +415,10 @@ export default function Admin({ ruta, salir }: { ruta: RutaAdmin; salir: () => v
         {ruta.seccion === "pedidos" && (ruta.id
           ? <DetallePedido id={ruta.id} vuelta={vuelta}/>
           : <Pedidos pagina={ruta.pagina} vuelta={vuelta}/>)}
-        {ruta.seccion === "productos" && <Productos vuelta={vuelta}/>}
+        {ruta.seccion === "productos" && (
+          ruta.id === "nuevo" ? <NuevoProducto/>
+          : ruta.id ? <EditarProducto key={ruta.id} id={ruta.id} vuelta={vuelta}/>
+          : <Productos vuelta={vuelta}/>)}
         {ruta.seccion === "auditoria" && <Auditoria pagina={ruta.pagina} vuelta={vuelta}/>}
         {ruta.seccion === "notificaciones" && <Notificaciones pagina={ruta.pagina} vuelta={vuelta}/>}
         {ruta.seccion === "estadisticas" && <Estadisticas vuelta={vuelta}/>}

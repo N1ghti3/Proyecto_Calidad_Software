@@ -87,11 +87,14 @@ export function leerRuta(direccion: string): Ruta {
 
   if ((m = camino.match(new RegExp(`^/categorias/${SLUG}$`)))) return { vista: "category", slug: m[1] };
   if ((m = camino.match(new RegExp(`^/producto/${SLUG}$`)))) return { vista: "product", slug: m[1] };
-  if ((m = camino.match(/^\/admin\/([a-z]+)(?:\/([0-9a-f-]{36}))?$/))) {
+  if ((m = camino.match(/^\/admin\/([a-z]+)(?:\/([0-9a-f-]{36}|nuevo))?$/))) {
     const seccion = m[1] as SeccionAdmin;
     if (!SECCIONES_ADMIN.includes(seccion)) return { vista: "notFound" };
-    // Solo los pedidos tienen detalle con dirección propia.
-    if (m[2] && seccion !== "pedidos") return { vista: "notFound" };
+    // Tienen dirección propia el detalle de un pedido, la edición de un
+    // producto y el alta (`/admin/productos/nuevo`).
+    if (m[2] && !(seccion === "productos" || (seccion === "pedidos" && m[2] !== "nuevo"))) {
+      return { vista: "notFound" };
+    }
     const pagina = Math.max(1, Number.parseInt(q.get("pagina") ?? "1", 10) || 1);
     return { vista: "admin", seccion, id: m[2] ?? null, pagina };
   }
@@ -125,11 +128,15 @@ export function tituloDe(ruta: Ruta, nombres: { categoria?: string; producto?: s
     admin: "Panel",
     notFound: "Página no encontrada",
   };
-  if (ruta.vista === "admin") {
-    const seccion = ETIQUETAS_ADMIN[ruta.seccion];
-    return `${ruta.id ? "Detalle del pedido" : seccion} · Panel · ${base}`;
-  }
+  if (ruta.vista === "admin") return `${tituloAdmin(ruta.seccion, ruta.id)} · Panel · ${base}`;
   return ruta.vista === "home" ? `${base} — ${titulos.home}` : `${titulos[ruta.vista]} · ${base}`;
+}
+
+/** Encabezado de una pantalla del panel; lo comparten la pestaña y el `<h1>`. */
+export function tituloAdmin(seccion: SeccionAdmin, id: string | null): string {
+  if (!id) return ETIQUETAS_ADMIN[seccion];
+  if (seccion === "pedidos") return "Detalle del pedido";
+  return id === "nuevo" ? "Nuevo producto" : "Editar producto";
 }
 
 export const ETIQUETAS_ADMIN: Record<SeccionAdmin, string> = {

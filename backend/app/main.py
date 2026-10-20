@@ -18,14 +18,16 @@ una invitación abierta.
 from __future__ import annotations
 
 import logging
+import mimetypes
 import secrets
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.api import errores
-from app.api.v1 import administracion, autenticacion, catalogo, compra
+from app.api.v1 import administracion, autenticacion, catalogo, compra, productos
 from app.core.config import obtener_settings
 from app.db.sesion import motor
 
@@ -76,8 +78,18 @@ async def identificar_peticion(peticion: Request, siguiente):
 
 errores.registrar_manejadores(app)
 
-for enrutador in (catalogo.router, compra.router, autenticacion.router, administracion.router):
+for enrutador in (catalogo.router, compra.router, autenticacion.router, administracion.router, productos.router):
     app.include_router(enrutador, prefix=PREFIJO)
+
+# Imágenes cargadas desde el panel (EP-16). Las fotos de la siembra las sirve
+# nginx desde la imagen del frontend; estas nacen en ejecución, así que las
+# sirve la API y nginx (o Vite en desarrollo) le reenvía /media/cargas/.
+# Windows no registra .webp en `mimetypes` y sin esto saldrían como
+# text/plain, que el navegador se niega a pintar como imagen.
+mimetypes.add_type("image/webp", ".webp")
+_cargas = obtener_settings().carpeta_media / "cargas"
+_cargas.mkdir(parents=True, exist_ok=True)
+app.mount("/media/cargas", StaticFiles(directory=_cargas), name="cargas")
 
 
 @app.get(f"{PREFIJO}/health", tags=["operación"])

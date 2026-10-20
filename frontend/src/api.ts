@@ -51,6 +51,9 @@ export type ProductImageResponse = {
   url: string;
   alt: string | null;
   position?: number;
+  /** Para reservar el espacio antes de que la imagen llegue (RNF-01). */
+  width?: number | null;
+  height?: number | null;
 };
 
 export type ProductResponse = ProductSummaryResponse & {
@@ -58,7 +61,23 @@ export type ProductResponse = ProductSummaryResponse & {
   category: CategoryResponse;
   images: ProductImageResponse[];
   variants: ProductVariantResponse[];
+  /** Siempre `true` en el detalle público; real en el panel (EP-25). */
+  published?: boolean;
+  updatedAt?: string | null;
 };
+
+export type VariantRequest = { size: string; sku?: string; initialStock: number; active?: boolean };
+
+export type ProductCreateRequest = {
+  name: string;
+  description?: string | null;
+  priceCop: number;
+  categoryId: string;
+  variants: VariantRequest[];
+  published?: boolean;
+};
+
+export type ProductUpdateRequest = Partial<Omit<ProductCreateRequest, "variants">>;
 
 export type PageMeta = { page: number; pageSize: number; totalItems: number; totalPages: number };
 export type Page<T> = { items: T[]; meta: PageMeta };
@@ -223,8 +242,10 @@ export const usuarioActual = () => usuarioAdmin;
 
 async function pedir<T>(ruta: string, opciones: RequestInit & { auth?: boolean } = {}): Promise<T> {
   const { auth, headers, ...resto } = opciones;
+  // Con FormData (carga de imágenes) el navegador escribe el Content-Type con
+  // el `boundary` del multipart; fijarlo a mano lo dejaría sin él.
   const cabeceras: Record<string, string> = {
-    "Content-Type": "application/json; charset=utf-8",
+    ...(resto.body instanceof FormData ? {} : { "Content-Type": "application/json; charset=utf-8" }),
     ...(headers as Record<string, string>),
   };
   if (auth && tokenAdmin) cabeceras.Authorization = `Bearer ${tokenAdmin}`;
@@ -395,6 +416,47 @@ export const TRANSICIONES: Record<EstadoOrden, EstadoOrden[]> = {
   ENTREGADA: [],
   CANCELADA: [],
 };
+
+/** EP-25 · GET /admin/products/{id} — también los despublicados. */
+export const obtenerProductoAdmin = (id: string) =>
+  pedir<ProductResponse>(`/admin/products/${encodeURIComponent(id)}`, { auth: true });
+
+/** EP-12 · POST /admin/products — producto, tallas y existencias en un envío. */
+export const crearProducto = (producto: ProductCreateRequest) =>
+  pedir<ProductResponse>("/admin/products", { method: "POST", auth: true, body: JSON.stringify(producto) });
+
+/** EP-22 · PATCH /admin/products/{id} — solo los campos enviados. */
+export const editarProducto = (id: string, cambios: ProductUpdateRequest) =>
+  pedir<ProductResponse>(`/admin/products/${encodeURIComponent(id)}`, {
+    method: "PATCH", auth: true, body: JSON.stringify(cambios),
+  });
+
+/** EP-14 · POST /admin/products/{id}/variants */
+export const agregarVariante = (id: string, variante: VariantRequest) =>
+  pedir<ProductVariantResponse>(`/admin/products/${encodeURIComponent(id)}/variants`, {
+    method: "POST", auth: true, body: JSON.stringify(variante),
+  });
+
+/** EP-16 · POST /admin/products/{id}/images — multipart; el servidor la
+ *  redimensiona y la convierte a WebP (RN-22). */
+export const cargarImagen = (id: string, archivo: File, alt: string, position?: number) => {
+  const datos = new FormData();
+  datos.append("file", archivo);
+  datos.append("alt", alt);
+  if (position !== undefined) datos.append("position", String(position));
+  return pedir<ProductImageResponse>(`/admin/products/${encodeURIComponent(id)}/images`, {
+    method: "POST", auth: true, body: datos,
+  });
+};
+
+/** Límites de EP-16, para avisar antes de subir. El servidor los vuelve a aplicar. */
+export const IMAGEN_MAX_BYTES = 5 * 1024 * 1024;
+export const IMAGEN_TIPOS = ["image/jpeg", "image/png", "image/webp"];
+
+/** Tallas que la migración inicial siembra en `size_catalog` (ADR-008). Solo
+ *  sirven de sugerencia en el formulario: el servidor valida contra la tabla
+ *  y, si una no existe, responde con la lista vigente. */
+export const TALLAS = ["XS", "S", "M", "L", "XL", "XXL", "ÚNICA"];
 
 /* ----------------------------------------------------------- utilidades */
 

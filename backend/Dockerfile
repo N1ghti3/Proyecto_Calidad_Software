@@ -54,6 +54,11 @@ COPY --chown=tienda:tienda backend/app ./app
 # aplicación, de modo que no puede desalinearse del esquema.
 COPY --chown=tienda:tienda database/seeds ./database/seeds
 
+# Carpeta de las imágenes cargadas desde el panel (MEDIA_DIR, EP-16). Se crea
+# aquí con dueño `tienda` porque un volumen con nombre nuevo hereda el dueño
+# de la carpeta de la imagen; sin esto quedaría de root y la carga fallaría.
+RUN mkdir -p /srv/media && chown tienda:tienda /srv/media
+
 USER tienda
 EXPOSE 8000
 

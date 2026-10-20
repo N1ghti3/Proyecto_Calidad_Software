@@ -248,7 +248,26 @@ def detalle_producto(slug: str, sesion: SesionDb):
     ).first()
     if fila is None:
         raise errores.no_encontrado("El producto solicitado no existe")
+    return construir_detalle(sesion, fila)
 
+
+def detalle_por_id(sesion: Session, product_id) -> ProductResponse:
+    """Detalle de cualquier producto, publicado o no. Solo para el panel."""
+    fila = sesion.execute(
+        _consulta_resumen(publicados_solo=False).where(Product.id == product_id)
+    ).first()
+    if fila is None:
+        raise errores.no_encontrado("El producto solicitado no existe")
+    return construir_detalle(sesion, fila)
+
+
+def construir_detalle(sesion: Session, fila) -> ProductResponse:
+    """Fila de `_consulta_resumen` -> ProductResponse con imágenes y tallas.
+
+    Lo comparten el detalle público (EP-03) y el panel (EP-12, EP-22, EP-25),
+    para que el producto recién creado o editado se vea exactamente como lo
+    verá el comprador.
+    """
     producto = fila[0]
     resumen = _a_resumen(fila)
 
@@ -285,10 +304,13 @@ def detalle_producto(slug: str, sesion: SesionDb):
         ),
         images=[
             ProductImageResponse(
-                id=i.id, url=i.url, alt=i.alt_text, position=i.position
+                id=i.id, url=i.url, alt=i.alt_text, position=i.position,
+                width=i.width, height=i.height,
             )
             for i in imagenes
         ],
+        published=producto.published,
+        updated_at=producto.updated_at,
         variants=[
             ProductVariantResponse(
                 id=v.id,

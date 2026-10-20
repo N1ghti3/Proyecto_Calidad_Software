@@ -119,6 +119,24 @@ def conflicto(campo: str, valor: str) -> ErrorApi:
     )
 
 
+def archivo_muy_grande(max_bytes: int) -> ErrorApi:
+    return ErrorApi(
+        "PAYLOAD_TOO_LARGE",
+        f"El archivo supera el tamaño máximo de {max_bytes // (1024 * 1024)} MB",
+        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        {"maxBytes": max_bytes},
+    )
+
+
+def tipo_no_admitido(admitidos: list[str]) -> ErrorApi:
+    return ErrorApi(
+        "UNSUPPORTED_MEDIA_TYPE",
+        "El archivo no es una imagen en un formato admitido",
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        {"allowed": admitidos},
+    )
+
+
 def limite_excedido(segundos: int) -> ErrorApi:
     """429 con `Retry-After`: el cliente sabe cuánto esperar sin adivinarlo."""
     return ErrorApi(

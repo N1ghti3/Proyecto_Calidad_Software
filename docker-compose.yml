@@ -84,7 +84,12 @@ services:
       # —pasa por nginx, mismo origen—, de modo que esta lista solo sirve para
       # quien levante Vite contra este backend.
       CORS_ORIGENES: ${FRONTEND_URL:-http://localhost:5173}
+      # Imágenes cargadas desde el panel (EP-16). En un volumen para que no se
+      # pierdan al reconstruir o recrear el contenedor.
+      MEDIA_DIR: /srv/media
       TZ: UTC
+    volumes:
+      - media_cargas:/srv/media
     depends_on:
       postgres:
         # No «arrancado», sino «aceptando conexiones»: PostgreSQL tarda unos
@@ -113,3 +118,5 @@ services:
 volumes:
   postgres_data:
     name: tiendalocal_postgres_data
+  media_cargas:
+    name: tiendalocal_media_cargas

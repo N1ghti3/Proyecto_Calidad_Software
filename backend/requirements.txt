@@ -7,6 +7,12 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 PyJWT==2.10.1
+# FastAPI la exige para recibir formularios multipart (EP-16, carga de imágenes).
+python-multipart==0.0.20
+
+# --- Imágenes (RN-22) ---
+# Redimensiona, convierte a WebP y descarta los metadatos EXIF al cargar.
+Pillow==11.3.0
 
 # --- Capa de datos ---
 SQLAlchemy==2.0.43
