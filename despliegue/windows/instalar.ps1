@@ -35,6 +35,15 @@ $ErrorActionPreference = "Stop"
 $aqui = Split-Path -Parent $MyInvocation.MyCommand.Path
 function Paso($texto) { Write-Host "`n== $texto" -ForegroundColor Cyan }
 
+# Igual que en publicar.ps1: exito por codigo de salida, no por stderr.
+function Ejecutar([scriptblock]$Bloque, [string]$Fallo) {
+    $previo = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Bloque 2>&1 | ForEach-Object { Write-Host "  $_" } }
+    finally { $ErrorActionPreference = $previo }
+    if ($LASTEXITCODE -ne 0) { throw "$Fallo (codigo $LASTEXITCODE)" }
+}
+
 function Secreto([int]$bytes = 24) {
     # Solo hexadecimal: va dentro de URLs de conexion y no necesita escaparse.
     $b = New-Object byte[] $bytes
@@ -117,9 +126,8 @@ if (-not (Test-Path (Join-Path $datos "PG_VERSION"))) {
     $pwfile = Join-Path $env:TEMP "tl-pw-$(Secreto 4).txt"
     Set-Content -Path $pwfile -Value $pwOwner -Encoding ascii -NoNewline
     try {
-        & "$PgBin\initdb.exe" -D $datos -U tiendalocal_owner --pwfile=$pwfile --auth=scram-sha-256 `
-            --locale-provider=icu --icu-locale=es-CO --locale=C --encoding=UTF8
-        if ($LASTEXITCODE -ne 0) { throw "initdb fallo" }
+        Ejecutar { & "$PgBin\initdb.exe" -D $datos -U tiendalocal_owner --pwfile=$pwfile --auth=scram-sha-256 `
+            --locale-provider=icu --icu-locale=es-CO --locale=C --encoding=UTF8 } "initdb fallo"
     } finally { Remove-Item $pwfile -Force }
 
     Add-Content (Join-Path $datos "postgresql.conf") @"
@@ -133,7 +141,7 @@ listen_addresses = 'localhost'
 }
 if (-not (Get-Service tiendalocal-postgres -ErrorAction SilentlyContinue)) {
     Paso "Servicio tiendalocal-postgres"
-    & "$PgBin\pg_ctl.exe" register -N tiendalocal-postgres -D $datos -S auto
+    Ejecutar { & "$PgBin\pg_ctl.exe" register -N tiendalocal-postgres -D $datos -S auto } "no se pudo registrar el servicio de PostgreSQL"
 }
 Start-Service tiendalocal-postgres
 $env:PGPASSWORD = $pwOwner
@@ -141,14 +149,13 @@ try {
     for ($i = 0; $i -lt 20; $i++) { & "$PgBin\pg_isready.exe" -h 127.0.0.1 -p $PuertoPg | Out-Null; if ($LASTEXITCODE -eq 0) { break }; Start-Sleep 1 }
     $existe = & "$PgBin\psql.exe" -h 127.0.0.1 -p $PuertoPg -U tiendalocal_owner -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'tiendalocal'"
     if (-not $existe) {
-        & "$PgBin\psql.exe" -h 127.0.0.1 -p $PuertoPg -U tiendalocal_owner -d postgres -c "CREATE DATABASE tiendalocal"
+        Ejecutar { & "$PgBin\psql.exe" -h 127.0.0.1 -p $PuertoPg -U tiendalocal_owner -d postgres -c "CREATE DATABASE tiendalocal" } "no se pudo crear la base"
     }
 } finally { Remove-Item Env:PGPASSWORD }
 
 # -------------------------------------------------------------- release
 Paso "Primera publicacion"
 & (Join-Path $aqui "publicar.ps1") -Repo $Repo -Commit $Commit -Base $Base
-if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) { throw "publicar.ps1 fallo" }
 
 # --------------------------------------------------------------- Caddy
 Paso "Configuracion de Caddy"
@@ -156,8 +163,7 @@ $baseBarras = $Base -replace '\\', '/'
 (Get-Content (Join-Path $aqui "Caddyfile.plantilla") -Raw -Encoding utf8) `
     -replace '\{\{DOMINIO\}\}', $Dominio -replace '\{\{BASE\}\}', $baseBarras |
     Set-Content -Path (Join-Path $Base "caddy\Caddyfile") -Encoding utf8
-& (Join-Path $Base "bin\caddy.exe") validate --config (Join-Path $Base "caddy\Caddyfile") --adapter caddyfile
-if ($LASTEXITCODE -ne 0) { throw "Caddyfile invalido" }
+Ejecutar { & (Join-Path $Base "bin\caddy.exe") validate --config (Join-Path $Base "caddy\Caddyfile") --adapter caddyfile } "Caddyfile invalido"
 
 # ------------------------------------------------------------- servicios
 function Servicio($nombre, $exe, $argumentos, $directorio, $entorno, $depende) {

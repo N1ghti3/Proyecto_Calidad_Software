@@ -25,6 +25,18 @@ $ErrorActionPreference = "Stop"
 
 function Paso($texto) { Write-Host "`n== $texto" -ForegroundColor Cyan }
 
+# Ejecuta un programa nativo y decide el exito por su codigo de salida. En
+# PowerShell 5.1, con ErrorActionPreference=Stop, cualquier linea en stderr
+# (Alembic, npm y pip escriben ahi sus mensajes normales) se trata como error
+# aunque el programa termine bien.
+function Ejecutar([scriptblock]$Bloque, [string]$Fallo) {
+    $previo = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Bloque 2>&1 | ForEach-Object { Write-Host "  $_" } }
+    finally { $ErrorActionPreference = $previo }
+    if ($LASTEXITCODE -ne 0) { throw "$Fallo (codigo $LASTEXITCODE)" }
+}
+
 function Cambiar-Enlace($destino) {
     $enlace = Join-Path $Base "actual"
     if (Test-Path $enlace) { cmd /c rmdir "$enlace" | Out-Null }
@@ -72,7 +84,7 @@ if (Test-Path $destino) {
     Write-Host "  ya existe: se reutiliza (borrela para reconstruirla)"
 } else {
     $zip = Join-Path $env:TEMP "tiendalocal-$sha.zip"
-    git -C $Repo archive --format=zip -o $zip $sha
+    Ejecutar { git -C $Repo archive --format=zip -o $zip $sha } "git archive fallo"
     Expand-Archive $zip -DestinationPath $destino
     Remove-Item $zip
 
@@ -88,27 +100,23 @@ if (Test-Path $destino) {
     Copy-Item $config (Join-Path $destino ".env")
 
     Paso "Dependencias del backend"
-    & $Python -m venv (Join-Path $destino "backend\.venv")
+    Ejecutar { & $Python -m venv (Join-Path $destino "backend\.venv") } "no se pudo crear el entorno virtual"
     $py = Join-Path $destino "backend\.venv\Scripts\python.exe"
-    & $py -m pip install --quiet --disable-pip-version-check -r (Join-Path $destino "backend\requirements.txt")
-    if ($LASTEXITCODE -ne 0) { throw "pip install fallo" }
+    Ejecutar { & $py -m pip install --quiet --disable-pip-version-check -r (Join-Path $destino "backend\requirements.txt") } "pip install fallo"
 
     Paso "Construccion del frontend"
     $env:Path = "$NodeDir;$env:Path"
     Push-Location (Join-Path $destino "frontend")
     try {
-        & "$NodeDir\npm.cmd" ci --no-audit --no-fund --loglevel=error
-        if ($LASTEXITCODE -ne 0) { throw "npm ci fallo" }
-        & "$NodeDir\npm.cmd" run build
-        if ($LASTEXITCODE -ne 0) { throw "la construccion del frontend fallo" }
+        Ejecutar { & "$NodeDir\npm.cmd" ci --no-audit --no-fund --loglevel=error } "npm ci fallo"
+        Ejecutar { & "$NodeDir\npm.cmd" run build } "la construccion del frontend fallo"
     } finally { Pop-Location }
 }
 
 Paso "Migraciones"
 Push-Location (Join-Path $destino "backend")
 try {
-    & ".\.venv\Scripts\python.exe" -m alembic upgrade head
-    if ($LASTEXITCODE -ne 0) { throw "alembic upgrade fallo" }
+    Ejecutar { & ".\.venv\Scripts\python.exe" -m alembic upgrade head } "alembic upgrade fallo"
 } finally { Pop-Location }
 
 Paso "Activando la release"
