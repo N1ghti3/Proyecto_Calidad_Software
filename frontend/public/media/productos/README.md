@@ -16,6 +16,27 @@ anunciándola. Eso es deliberado —ver el componente `Foto` en `src/App.tsx`—
 porque una fotografía que falta es contenido pendiente, no un fallo del
 sistema, y no debe parecerlo.
 
+## Fotografías de demostración
+
+Para revisar la interfaz con contenido verosímil sin esperar a las fotografías
+del negocio:
+
+```powershell
+.\database\seeds\descargar_fotos.ps1
+docker compose exec -T postgres psql -U tiendalocal_owner -d tiendalocal `
+    -c "UPDATE product_image SET url = replace(url, '.webp', '.jpg');"
+docker compose up -d --build frontend
+```
+
+Trae doce fotografías de Unsplash, de licencia libre para uso comercial. **No
+son los productos reales**: son aproximaciones, y el guion deja escrito junto a
+cada una qué muestra, para que quien revise pueda juzgarlo. Antes de cualquier
+uso real deben sustituirse por fotografías del propio micronegocio.
+
+El `UPDATE` hace falta porque Unsplash entrega JPEG y esta siembra registró
+`.webp`. Renombrar el archivo haría que nginx declarara un tipo de contenido
+que no corresponde, de modo que se ajusta la ruta y no el archivo.
+
 ## Para añadirlas
 
 Basta con dejar los archivos con el nombre exacto que la siembra registró. Para
