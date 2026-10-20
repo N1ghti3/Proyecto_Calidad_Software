@@ -1,9 +1,9 @@
 {
-  "ejecutado": "2026-10-20T21:28:08+00:00",
+  "ejecutado": "2026-10-20T21:38:25+00:00",
   "api": "http://127.0.0.1:8000/api/v1",
   "total": 10,
-  "aprobadas": 9,
-  "fallidas": 1,
+  "aprobadas": 10,
+  "fallidas": 0,
   "casos": [
     {
       "caso": "PRB-01",
@@ -12,16 +12,16 @@
       "esperado": "El borrador no aparece en el listado ni en el detalle (404); publicados visibles = publicados en el panel",
       "obtenido": "45 publicados visibles (panel: 45); borrador en listado: no; detalle del borrador: 404",
       "estado": "APROBADA",
-      "duracion_ms": 84
+      "duracion_ms": 73
     },
     {
       "caso": "PRB-02",
       "requisito": "RNF-02",
       "verifica": "50 solicitudes simultáneas sobre 10 unidades, por la API (implementación con bloqueo)",
       "esperado": "10 confirmadas / 40 rechazadas con INSUFFICIENT_STOCK / stock final 0 / 0 errores",
-      "obtenido": "10 confirmadas, 40 rechazadas, stock final 0, 0 errores, 10 descuentos auditados (861 ms)",
+      "obtenido": "10 confirmadas, 40 rechazadas, stock final 0, 0 errores, 10 descuentos auditados (1413 ms)",
       "estado": "APROBADA",
-      "duracion_ms": 970
+      "duracion_ms": 1529
     },
     {
       "caso": "PRB-03",
@@ -30,7 +30,7 @@
       "esperado": "Sin bloqueo se reproduce la sobreventa; con bloqueo, 10 / 40 / 0",
       "obtenido": "CON bloqueo: 10 confirmadas, 40 rechazadas, stock final 0 · SIN bloqueo: 50 confirmadas sobre 10 unidades (sobreventa de 40), stock final 9",
       "estado": "APROBADA",
-      "duracion_ms": 2597
+      "duracion_ms": 2815
     },
     {
       "caso": "PRB-04",
@@ -39,7 +39,7 @@
       "esperado": "400 CONSENT_REQUIRED; ninguna orden creada; inventario intacto",
       "obtenido": "400 CONSENT_REQUIRED; sin el campo: 400; órdenes nuevas: 0; stock 3→3",
       "estado": "APROBADA",
-      "duracion_ms": 52
+      "duracion_ms": 71
     },
     {
       "caso": "PRB-05",
@@ -57,15 +57,15 @@
       "esperado": "409 INSUFFICIENT_STOCK; stock del ítem válido sin cambios; sin orden nueva",
       "obtenido": "409 INSUFFICIENT_STOCK; ítem válido 5→5; órdenes nuevas: 0",
       "estado": "APROBADA",
-      "duracion_ms": 72
+      "duracion_ms": 106
     },
     {
       "caso": "PRB-07",
       "requisito": "REQ-06",
       "verifica": "Toda variación de existencias deja registro de auditoría con origen y referencia",
       "esperado": "Registro 5→3, origen ORDEN, referencia igual al código de la orden",
-      "obtenido": "Registro 5→3, origen ORDEN; referencia a TL-20261020-2HY8N: AUSENTE (el registro no guarda el código de la orden)",
-      "estado": "FALLIDA",
+      "obtenido": "Registro 5→3, origen ORDEN; referencia a TL-20261020-P2NTS: presente",
+      "estado": "APROBADA",
       "duracion_ms": 39
     },
     {
@@ -75,7 +75,7 @@
       "esperado": "400 VALIDATION_ERROR en la orden y en la validación del carrito",
       "obtenido": "Orden: 400 VALIDATION_ERROR (campo items); validación del carrito: 400",
       "estado": "APROBADA",
-      "duracion_ms": 7
+      "duracion_ms": 8
     },
     {
       "caso": "PRB-09",
@@ -84,7 +84,7 @@
       "esperado": "La base rechaza la escritura con código 23514; la API responde 400",
       "obtenido": "Base de datos: rechazo con código 23514; API: 400; stock intacto en 3",
       "estado": "APROBADA",
-      "duracion_ms": 10
+      "duracion_ms": 11
     },
     {
       "caso": "PRB-10",
@@ -93,7 +93,7 @@
       "esperado": "40 confirmadas, 0 errores 500 (el bloqueo se toma ordenado por variant_id, defecto 1 de la sección 9.2)",
       "obtenido": "40 confirmadas, 0 errores",
       "estado": "APROBADA",
-      "duracion_ms": 1042
+      "duracion_ms": 995
     }
   ]
 }

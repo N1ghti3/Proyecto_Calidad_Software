@@ -238,7 +238,11 @@ def crear_orden(sesion: Session, peticion) -> OrderHeader:
                 source="ORDEN",
                 old_value=str(anterior),
                 new_value=str(anterior - cantidad),
-                reason=None,  # ck_audit_log_motivo_obligatorio lo exime si source = ORDEN
+                # La referencia a la orden (PRB-07, REQ-06): sin ella, con varias
+                # compras simultáneas no se puede conciliar qué pedido descontó
+                # qué unidades. ck_audit_log_motivo_obligatorio no la exige para
+                # source = ORDEN, pero nada impide guardarla.
+                reason=f"Orden {orden.order_number}",
             )
         )
 

@@ -52,14 +52,19 @@ COMPRADOR = {
 }
 
 
-def _disponible() -> tuple[str, int]:
-    """Busca una variante con existencias en el catálogo sembrado."""
+def _disponible(maximo: int | None = None) -> tuple[str, int]:
+    """Busca una variante con existencias en el catálogo sembrado.
+
+    Con `maximo`, solo una que tenga a lo sumo esas unidades: pedir «existencias
+    + algo» a una variante con 40 unidades pasaría el tope de 20 por línea
+    (RN-07) y la API respondería 400, no el 409 que se quiere probar.
+    """
     r = httpx.get(f"{API}/products", params={"pageSize": 50, "inStock": True}, timeout=10)
     r.raise_for_status()
     for resumen in r.json()["items"]:
         detalle = httpx.get(f"{API}/products/{resumen['slug']}", timeout=10).json()
         for v in detalle["variants"]:
-            if v["availableUnits"] > 0:
+            if v["availableUnits"] > 0 and (maximo is None or v["availableUnits"] <= maximo):
                 return v["id"], v["availableUnits"]
     pytest.skip("El catálogo sembrado no tiene ninguna variante con existencias")
 
@@ -136,10 +141,10 @@ def test_ninguna_orden_excede_las_existencias(api_viva) -> None:
 
 def test_la_orden_rechazada_no_descuenta_nada(api_viva) -> None:
     """Garantía del contrato: si responde 409, no se descontó ninguna unidad."""
-    variant_id, unidades = _disponible()
+    variant_id, unidades = _disponible(maximo=15)
 
     cuerpo = {
-        "items": [{"variantId": variant_id, "quantity": unidades + 5}],
+        "items": [{"variantId": variant_id, "quantity": unidades + 5}],  # ≤ 20 (RN-07)
         "customer": COMPRADOR,
         "dataProcessingConsent": True,
     }

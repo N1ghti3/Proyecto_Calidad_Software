@@ -5,8 +5,16 @@
   --ink: #14140f;
   --cream: #faf7f2;
   --paper: #ffffff;
-  --orange: #e8562c;
-  --orange-dark: #c94320;
+  /* Contraste WCAG 2.2 AA (ACC-01). El naranja de marca #e8562c daba 3,6:1
+     con texto blanco y 2,7:1 como texto sobre el beige del encabezado. Ahora:
+     --orange: botones, insignias y texto naranja (blanco encima 5,1:1;
+               sobre crema 4,8:1);
+     --orange-texto: texto naranja sobre el beige del hero (5,1:1);
+     --orange-brillo: solo figuras decorativas, sin texto encima. */
+  --orange: #c2421e;
+  --orange-dark: #9e3416;
+  --orange-texto: #a3371a;
+  --orange-brillo: #e8562c;
   --sage: #2e5339;
   --muted: #6e6d64;
   --line: #e7e3d8;
@@ -41,7 +49,8 @@ h1,h2,h3,.logo { font-family: "Space Grotesk", sans-serif; letter-spacing: -.04e
 .hero-copy { max-width: 650px; position: relative; z-index: 2; }
 .kicker,.eyebrow { display: block; color: var(--orange); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: 12px; }
 .hero h1 { font-size: clamp(48px, 5.1vw, 76px); line-height: .98; margin: 20px 0 25px; max-width: 720px; }
-.hero h1 i { color: var(--orange); font-style: normal; }
+.hero h1 i { color: var(--orange-texto); font-style: normal; }
+.hero .kicker { color: var(--orange-texto); }
 .hero-copy > p { color: #4f4e48; font-size: 18px; line-height: 1.6; max-width: 560px; }
 .hero-actions { display: flex; gap: 12px; margin-top: 34px; }
 .primary,.secondary,.promo .promo-enlace,.submit,.admin-primary { text-decoration: none; min-height: 50px; padding: 0 22px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--ink); font-weight: 700; }
@@ -49,7 +58,7 @@ h1,h2,h3,.logo { font-family: "Space Grotesk", sans-serif; letter-spacing: -.04e
 .primary:hover,.submit:hover { background: var(--orange-dark); }
 .secondary { color: var(--ink); background: transparent; }
 .hero-visual { height: 570px; position: relative; display: flex; align-items: flex-end; justify-content: center; }
-.hero-visual .shape { position: absolute; width: min(39vw, 560px); height: min(39vw, 560px); background: var(--orange); border-radius: 52% 48% 34% 66% / 57% 33% 67% 43%; transform: rotate(-8deg); }
+.hero-visual .shape { position: absolute; width: min(39vw, 560px); height: min(39vw, 560px); background: var(--orange-brillo); border-radius: 52% 48% 34% 66% / 57% 33% 67% 43%; transform: rotate(-8deg); }
 .hero-visual > img { position: relative; width: min(34vw, 490px); height: 560px; object-fit: cover; object-position: center 15%; border-radius: 47% 47% 8px 8px; mix-blend-mode: multiply; }
 .floating { position: absolute; z-index: 3; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); padding: 9px; border-radius: 10px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow); }
 .floating img { width: 58px; height: 58px; object-fit: cover; border-radius: 6px; }
@@ -144,7 +153,7 @@ footer { background: var(--ink); color: white; padding: 70px max(5vw,32px) 0; }
 .back-home { text-decoration: none; position: absolute; top: 24px; left: 25px; z-index: 3; border: 0; background: rgba(255,255,255,.12); color: white; display: flex; gap: 9px; align-items: center; padding: 10px 14px; border-radius: 8px; }
 .back-home .icon { transform: rotate(180deg); width: 18px; }
 .login-art { background: var(--ink); color: white; padding: 38px clamp(34px,6vw,90px); display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
-.login-art:after { content:""; width: 430px; height: 430px; border-radius: 40% 60% 65% 35%; background: var(--orange); position: absolute; right: -180px; bottom: 15%; opacity: .92; }
+.login-art:after { content:""; width: 430px; height: 430px; border-radius: 40% 60% 65% 35%; background: var(--orange-brillo); position: absolute; right: -180px; bottom: 15%; opacity: .92; }
 .login-art > div { position: relative; z-index: 1; }
 .login-art h2 { font-size: clamp(43px,5vw,72px); line-height: 1; margin: 20px 0; }
 .login-art p { color: #c2c0b8; font-size: 17px; line-height: 1.6; max-width: 520px; }
@@ -437,7 +446,7 @@ fieldset.admin-tarjeta legend + * { clear: both; }
 .admin-producto-titulo h2 { margin: 0; font-size: 30px; }
 .admin-producto-titulo a { color: var(--sage); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .admin-producto-titulo .icon { width: 16px; }
-.admin-nota code { background: var(--soft); padding: 2px 6px; border-radius: 4px; }
+.admin-nota code { background: var(--soft); color: var(--ink); padding: 2px 6px; border-radius: 4px; }
 .admin-producto { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .admin-producto-lateral { display: grid; gap: 20px; }
 .admin-tabla td.low { color: var(--danger); font-weight: 700; }
@@ -453,4 +462,20 @@ fieldset.admin-tarjeta legend + * { clear: both; }
   .admin-fila-talla { grid-template-columns: 1fr 1fr; }
   .admin-fila-talla > button { grid-column: 1 / -1; }
   .admin-tarjeta { padding: 20px 16px; }
+}
+
+/* ACC-06: talla agotada tachada y nombrada, no solo atenuada. */
+.chips button:disabled { text-decoration: line-through; color: #77756c; background: var(--soft); cursor: not-allowed; }
+.tallas-agotadas { margin: .5rem 0 0; color: var(--muted); font-size: 13px; }
+
+/* Sobre fondo oscuro el naranja accesible para fondo claro se queda corto
+   (3,6:1 sobre el negro de la marca); ahí va el de marca, que da 5,1:1. */
+.catalog-intro .eyebrow, .login-art .kicker { color: var(--orange-brillo); }
+/* Pestaña inactiva del ingreso: el gris atenuado daba 4,4:1 sobre --soft. */
+.role-switch button:not(.active) { color: #55544c; }
+
+/* En escritorio el botón «Volver a la tienda» tapaba casi todo el logo del
+   panel izquierdo del ingreso (axe target-size: quedaban 4 px clicables). */
+@media (min-width: 901px) {
+  .login-art > .logo { margin-top: 52px; }
 }

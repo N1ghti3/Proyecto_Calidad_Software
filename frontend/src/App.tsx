@@ -27,15 +27,23 @@ type ItemCarrito = {
 };
 
 /* Imágenes decorativas del diseño (hero y portadas de categoría).
-   Las fotografías de producto provienen de la API. */
+   Las fotografías de producto provienen de la API.
+
+   Se piden al CDN del tamaño en que se pintan, a doble densidad: las
+   portadas se ven a ~130 px en la fila de inicio y a ~400 px en /categorias,
+   y el hero a ~490 px. Pedidas a 900 px y calidad 85 sumaban ~800 KB y
+   dejaban la página de inicio en 1,7 MB, sobre el límite de RNF-01. */
+const unsplash = (id: string, ancho: number) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${ancho}&q=75`;
+const portada = (id: string) => unsplash(id, 480);
 const photos = {
-  hero: "https://images.unsplash.com/photo-1767036840968-91dc63654cd7?auto=format&fit=crop&w=1200&q=85",
-  street: "https://images.unsplash.com/photo-1629753453388-5f3ae10370ef?auto=format&fit=crop&w=900&q=85",
-  tee: "https://images.unsplash.com/photo-1618718123715-a2db2f17e908?auto=format&fit=crop&w=900&q=85",
-  woven: "https://images.unsplash.com/photo-1741188491649-7df9303dd892?auto=format&fit=crop&w=900&q=85",
-  jewels: "https://images.unsplash.com/photo-1567736464933-bc179b82a448?auto=format&fit=crop&w=900&q=85",
-  shoe: "https://images.unsplash.com/photo-1634801634476-2d98226094fe?auto=format&fit=crop&w=900&q=85",
-  basket: "https://images.unsplash.com/photo-1534413340928-7bd74b65196f?auto=format&fit=crop&w=900&q=85",
+  hero: unsplash("photo-1767036840968-91dc63654cd7", 900),
+  street: portada("photo-1629753453388-5f3ae10370ef"),
+  tee: portada("photo-1618718123715-a2db2f17e908"),
+  woven: portada("photo-1741188491649-7df9303dd892"),
+  jewels: portada("photo-1567736464933-bc179b82a448"),
+  shoe: portada("photo-1634801634476-2d98226094fe"),
+  basket: portada("photo-1534413340928-7bd74b65196f"),
 };
 
 const portadas: Record<string, { image: string; subtitle: string }> = {
@@ -525,12 +533,21 @@ function ProductDetail({ producto, relacionados, saved, toggle, agregar, accione
                         className={variantId === v.id ? "active" : ""}
                         aria-pressed={variantId === v.id}
                         disabled={!v.inStock}
+                        aria-label={v.inStock ? `Talla ${v.size}, ${v.availableUnits} disponibles` : `Talla ${v.size}, agotada`}
                         title={v.inStock ? `${v.availableUnits} disponibles` : "Agotada"}
                         onClick={() => { setVariantId(v.id); setQty(1); }}>
                   {v.size}
                 </button>
               ))}
             </div>
+            {/* ACC-06: lo agotado no se comunica solo con el gris del botón
+                deshabilitado; también va tachado y escrito. */}
+            {producto.variants.some(v => !v.inStock) && (
+              <p className="tallas-agotadas">
+                Agotada{producto.variants.filter(v => !v.inStock).length > 1 ? "s" : ""}:{" "}
+                {producto.variants.filter(v => !v.inStock).map(v => v.size).join(", ")}
+              </p>
+            )}
             {variante && <p className="stock" style={{ marginTop: ".4rem" }}>
               Talla {variante.size}: {variante.availableUnits} {variante.availableUnits === 1 ? "unidad" : "unidades"}
             </p>}

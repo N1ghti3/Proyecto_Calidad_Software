@@ -26,10 +26,12 @@ export function Foto({ src, alt, className, onClick, loading }: {
   useEffect(() => { setFalló(false); }, [src]);
 
   if (!src || falló) {
-    return (
-      <span className={`foto-ausente ${className ?? ""}`} role="img" aria-label={alt}
-            onClick={onClick} />
-    );
+    // Con alt="" la imagen es decorativa (p. ej. la miniatura del panel, junto
+    // al nombre del producto): el hueco se oculta a los lectores de pantalla.
+    // Un role="img" sin nombre es un error grave de axe (role-img-alt).
+    return alt
+      ? <span className={`foto-ausente ${className ?? ""}`} role="img" aria-label={alt} onClick={onClick} />
+      : <span className={`foto-ausente ${className ?? ""}`} aria-hidden="true" onClick={onClick} />;
   }
   return (
     // `loading="lazy"` por omisión: el catálogo trae más de una docena de
