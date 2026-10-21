@@ -7,6 +7,13 @@
 	# seguridad del sistema: la verificación local usa curl -k.
 	skip_install_trust
 
+	# Solo lo que llega desde este mismo equipo (cloudflared) puede declarar la
+	# IP del cliente en X-Forwarded-For. Así la API ve la IP real de quien
+	# entra por el túnel, y nadie desde internet puede falsificarla.
+	servers {
+		trusted_proxies static 127.0.0.1/32 ::1/128
+	}
+
 	# Registros en JSON para poder buscarlos; los errores de Caddy van al log del servicio.
 	log {
 		output file {{BASE}}/logs/caddy.log {
@@ -56,8 +63,12 @@
 		# Los activos de Vite llevan huella en el nombre: se cachean un año.
 		@activos path /assets/*
 		header @activos Cache-Control "public, max-age=31536000, immutable"
-		# index.html no se cachea: es el único que conserva su nombre.
-		@indice path / /index.html
+		# index.html no se cachea: es el único que conserva su nombre. Se marca
+		# todo lo que no es un activo con huella, porque las rutas de la
+		# aplicación (/catalogo, /producto/...) también devuelven index.html y,
+		# con solo Last-Modified, el navegador podría guardar una copia vieja y
+		# pedir tras una publicación un JS que ya no existe.
+		@indice not path /assets/* /media/*
 		header @indice Cache-Control "no-cache"
 		# Las rutas de la aplicación (/catalogo, /admin/...) las resuelve React.
 		try_files {path} /index.html
@@ -66,6 +77,14 @@
 }
 
 {{DOMINIO}} {
+	import tienda
+}
+
+# Entrada del túnel de Cloudflare (tunel.ps1). Solo escucha en 127.0.0.1: el
+# HTTPS público lo pone Cloudflare y cloudflared llega aquí por HTTP local,
+# sin abrir ningún puerto de entrada en el servidor.
+http://:8080 {
+	bind 127.0.0.1
 	import tienda
 }
 

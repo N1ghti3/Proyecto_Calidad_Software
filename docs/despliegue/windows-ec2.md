@@ -20,6 +20,7 @@ Internet ──443/80──► Caddy (tiendalocal-web)
 | `tiendalocal-web` | Caddy 2: HTTPS automático con Let's Encrypt, compresión, encabezados de seguridad (HSTS, CSP) | 0.0.0.0:80 y :443 |
 | `tiendalocal-api` | FastAPI + uvicorn, ejecutado con NSSM | 127.0.0.1:8001 |
 | `tiendalocal-postgres` | PostgreSQL 16 propio de producción | 127.0.0.1:5433 |
+| `tiendalocal-tunel` (opcional) | Túnel rápido de Cloudflare hacia Caddy | solo conexión saliente |
 
 Los tres arrancan solos con el sistema. La base de producción es **un clúster aparte** del PostgreSQL de desarrollo (puerto 5432): los roles de PostgreSQL son del clúster y la migración inicial fija la contraseña de `tiendalocal_app`, de modo que compartirlo obligaría a usar las mismas credenciales en desarrollo y en producción.
 
@@ -64,6 +65,20 @@ Son configuración de seguridad y no los hace ningún guion:
    New-NetFirewallRule -DisplayName "TiendaLocal HTTPS" -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow
    ```
 3. Con los puertos abiertos, Caddy obtiene el certificado solo en el siguiente minuto. Se comprueba en `C:\tiendalocal\logs\caddy.log` («certificate obtained successfully»).
+
+### Alternativa sin abrir puertos: túnel de Cloudflare
+
+Si no se quiere tocar el grupo de seguridad ni el firewall, la tienda puede publicarse con un túnel rápido de Cloudflare. `cloudflared` abre una conexión **saliente** hacia Cloudflare y recibe por ella el tráfico de una dirección `https://<aleatoria>.trycloudflare.com`, que entrega a Caddy en `http://127.0.0.1:8080` (un sitio que solo escucha en el propio equipo).
+
+```powershell
+winget install Cloudflare.cloudflared
+C:\tiendalocal\scripts\tunel.ps1          # instala el servicio tiendalocal-tunel y muestra la URL
+C:\tiendalocal\scripts\tunel.ps1 -Quitar  # lo elimina
+```
+
+La URL vigente queda en `C:\tiendalocal\URL-PUBLICA.txt`. Limitaciones del túnel rápido: la dirección es aleatoria y **cambia cada vez que el servicio se reinicia** (también al reiniciar el servidor), y Cloudflare no da garantía de disponibilidad. Sirve para demostraciones y para la entrega, no para producción. Para una dirección fija sin abrir puertos hace falta un túnel con nombre (cuenta gratuita de Cloudflare y un dominio propio).
+
+Caddy solo acepta la IP del cliente que declara `cloudflared` cuando la petición llega desde el propio equipo (`trusted_proxies`), de modo que el límite de intentos de inicio de sesión ve la IP real de cada visitante y nadie desde fuera puede falsificarla.
 
 ## Publicar una versión nueva
 
