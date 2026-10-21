@@ -253,35 +253,116 @@ Carpetas principales: `/tests`, `/nginx`, `/.github`, `/docs/despliegue`
 
 ## Estado del proyecto
 
-**Iteración I-3 — capa de datos**
+**Iteración I-4 — el sistema corre de punta a punta**
 
 Lo que existe y funciona:
 
 - el servicio de PostgreSQL 16 de `docker-compose.yml`, con volumen con nombre y verificación de salud;
-- el esquema completo —once tablas, restricciones, índices y catálogo de tallas sembrado— como migración de Alembic en `backend/alembic/`;
+- el esquema completo —doce tablas, restricciones, índices y catálogo de tallas sembrado— como migración de Alembic en `backend/alembic/`;
 - los modelos de SQLAlchemy de los que esa migración se autogeneró, que permiten detectar divergencias entre el código y el esquema real con `alembic check`;
 - el rol de aplicación con privilegios acotados, que hace de la auditoría una tabla de solo anexado en el propio motor;
-- el catálogo de demostración en `database/seeds/`: doce productos publicados con imagen, más los estados interesantes (agotados, sin publicar, sin variantes activas).
+- el catálogo de demostración en `database/seeds/`: doce productos publicados con imagen, más los estados interesantes (agotados, sin publicar, sin variantes activas);
+- **la API REST en FastAPI**, que implementa el contrato de `docs/api/`: catálogo paginado, detalle por slug, validación de carrito, creación de órdenes con bloqueo transaccional, autenticación del panel con Argon2id y token, inventario y pedidos;
+- **la interfaz web en React y TypeScript**, que consume ese contrato sin desviaciones y cuya construcción falla si deja de coincidir con sus tipos;
+- **el proxy inverso**, que en el despliegue con Docker sirve la interfaz y redirige `/api` al backend, de modo que el navegador ve un solo origen.
 
-Lo que **no** existe todavía: API REST, interfaz web, proxy inverso y canal de integración continua.
+Lo que **no** existe todavía: notificaciones por correo (REQ-05) y canal de integración continua con pruebas.
 
-### Puesta en marcha de la base de datos
+### Puesta en marcha
+
+El camino corto, todo en contenedores:
 
 ```bash
-cp .env.example .env          # y rellenar las contraseñas
-docker compose up -d          # levanta PostgreSQL 16
-docker compose ps             # debe decir: running (healthy)
+cp .env.example .env            # y rellenar las contraseñas y JWT_SECRET
+
+docker compose up -d postgres   # primero solo la base
+
+# Crear el esquema y sembrar el catálogo de demostración. Se usa `run --rm`,
+# que levanta un contenedor desechable, y no `exec`, que exigiría un backend
+# ya sano: su verificación de salud se conecta con el rol de la aplicación, y
+# ese rol lo crea precisamente esta migración. Con `exec` el arranque se
+# quedaría esperando a que el backend sane por algo que todavía no ha ocurrido.
+docker compose run --rm backend alembic upgrade head
+docker compose run --rm backend python database/seeds/sembrar_desarrollo.py
+
+docker compose up -d --build    # ahora sí, API e interfaz
+docker compose ps               # los tres deben decir: running (healthy)
+```
+
+La tienda queda en **<http://localhost:8080>** y la API en <http://127.0.0.1:8000/api/v1>.
+El panel se abre con `admin@example.com` y la contraseña que hayas puesto en
+`ADMIN_SEED_PASSWORD`.
+
+Para generar el secreto de firma del token:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+#### Si el backend queda «unhealthy»
+
+```text
+✘ Container tiendalocal-backend  Error dependency backend failed to start
+dependency failed to start: container tiendalocal-backend is unhealthy
+```
+
+Casi siempre significa que la migración no se ha ejecutado todavía: el rol
+`tiendalocal_app` con el que el backend se conecta lo crea `alembic upgrade
+head`, de modo que antes de esa migración el servicio no puede estar sano. Se
+resuelve ejecutando los dos comandos de `run --rm` de más arriba y volviendo a
+levantar.
+
+Para ver la causa real en lugar de suponerla:
+
+```bash
+docker compose logs backend --tail 40
+```
+
+La otra causa frecuente es un `.env` sin rellenar: con `JWT_SECRET` vacío la
+API se niega a emitir tokens a propósito, porque un secreto por omisión es un
+secreto conocido.
+
+#### Si falla la autenticación contra la base
+
+```text
+FATAL: password authentication failed for user "tiendalocal_owner"
+```
+
+`POSTGRES_PASSWORD` solo surte efecto en la **primera** inicialización del
+volumen, igual que la colación de ADR-011. Si se levantó el contenedor con un
+`.env` sin rellenar y después se corrigieron las contraseñas, el volumen
+conserva las antiguas: el cambio no tiene efecto y no avisa.
+
+En desarrollo, donde no hay datos que conservar, se descarta el volumen:
+
+```bash
+docker compose down -v    # el -v borra el volumen; sin él el fallo persiste
+```
+
+y se repite la puesta en marcha desde el principio. En un ambiente con datos
+reales no se borra nada: se cambia la contraseña dentro del motor con
+`ALTER ROLE ... PASSWORD`, y se ajusta el `.env` para que coincida.
+
+#### Desarrollo sin contenedores
+
+Si prefieres recargar en caliente mientras trabajas:
+
+```bash
+docker compose up -d postgres          # solo la base
 
 cd backend
 python -m venv .venv && source .venv/bin/activate   # en Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-alembic upgrade head          # crea las once tablas y siembra las tallas
+alembic upgrade head
+cd .. && backend/.venv/bin/python database/seeds/sembrar_desarrollo.py
 
-cd ..
-backend/.venv/bin/python database/seeds/sembrar_desarrollo.py   # catálogo de demostración
+cd backend && uvicorn app.main:app --reload --port 8000   # en una terminal
+cd frontend && npm ci && npm run dev                      # en otra
 ```
 
-Detalle en [`backend/README.md`](backend/README.md) y [`database/README.md`](database/README.md).
+Así la interfaz queda en <http://localhost:5173> y Vite redirige `/api` al
+backend. Detalle en [`backend/README.md`](backend/README.md),
+[`frontend/README.md`](frontend/README.md) y [`database/README.md`](database/README.md).
 
 ## Estructura del repositorio
 

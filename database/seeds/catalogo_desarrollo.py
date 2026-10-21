@@ -89,13 +89,13 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("S", 2, True), ("M", 0, True), ("L", 5, True)),
         "imagenes": (
             (
-                "camiseta-oversize-negra-frente.webp",
+                "camiseta-oversize-negra-frente.jpg",
                 "Camiseta negra de corte holgado vista de frente sobre fondo gris claro",
                 1200,
                 1200,
             ),
             (
-                "camiseta-oversize-negra-espalda.webp",
+                "camiseta-oversize-negra-espalda.jpg",
                 "Espalda de la camiseta negra, sin estampado, con etiqueta tejida en el cuello",
                 1200,
                 1200,
@@ -117,7 +117,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("M", 3, True), ("L", 7, True), ("XL", 11, True)),
         "imagenes": (
             (
-                "camiseta-basica-blanca-frente.webp",
+                "camiseta-basica-blanca-frente.jpg",
                 "Camiseta blanca de cuello redondo colgada de un gancho de madera",
                 1200,
                 1200,
@@ -139,7 +139,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("S", 4, True), ("M", 0, True), ("L", 9, True)),
         "imagenes": (
             (
-                "camiseta-estampada-nandu-frente.webp",
+                "camiseta-estampada-nandu-frente.jpg",
                 "Camiseta color crudo con la silueta de un ñandú serigrafiada en tinta negra sobre el pecho",
                 1200,
                 1200,
@@ -164,7 +164,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("S", 0, True), ("M", 0, True), ("L", 0, True)),
         "imagenes": (
             (
-                "camiseta-tie-dye-frente.webp",
+                "camiseta-tie-dye-frente.jpg",
                 "Camiseta teñida por anudado en espiral con tonos azul y violeta, extendida sobre una mesa",
                 1200,
                 1200,
@@ -191,13 +191,13 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("S", 4, True), ("M", 2, True), ("L", 0, True)),
         "imagenes": (
             (
-                "chaqueta-bomber-cara-nailon.webp",
+                "chaqueta-bomber-cara-nailon.jpg",
                 "Chaqueta bomber verde oliva en nailon, vista de frente con el cierre subido a la mitad",
                 1200,
                 1500,
             ),
             (
-                "chaqueta-bomber-cara-algodon.webp",
+                "chaqueta-bomber-cara-algodon.jpg",
                 "La misma chaqueta volteada, mostrando la cara de algodón acolchado color arena",
                 1200,
                 1500,
@@ -218,7 +218,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("M", 10, True), ("L", 6, True), ("XL", 1, True)),
         "imagenes": (
             (
-                "buzo-cuello-tortuga-frente.webp",
+                "buzo-cuello-tortuga-frente.jpg",
                 "Buzo de punto color mostaza con cuello alto doblado, visto de frente",
                 1200,
                 1500,
@@ -240,7 +240,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("M", 8, True), ("L", 5, True)),
         "imagenes": (
             (
-                "sudadera-capucha-grafiti-frente.webp",
+                "sudadera-capucha-grafiti-frente.jpg",
                 "Sudadera gris con capucha y un estampado de mural en tonos rojo y azul en el pecho",
                 1200,
                 1500,
@@ -265,7 +265,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("M", 0, False),),
         "imagenes": (
             (
-                "chaleco-acolchado-frente.webp",
+                "chaleco-acolchado-frente.jpg",
                 "Chaleco acolchado azul marino sin mangas, con cierre frontal, sobre un maniquí",
                 1200,
                 1500,
@@ -292,13 +292,13 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("ÚNICA", 3, True),),
         "imagenes": (
             (
-                "mochila-wayuu-completa.webp",
+                "mochila-wayuu-completa.jpg",
                 "Mochila wayuu tejida en crochet con franjas geométricas en rojo, ocre y azul, con gaza trenzada",
                 1200,
                 1200,
             ),
             (
-                "mochila-wayuu-detalle-gaza.webp",
+                "mochila-wayuu-detalle-gaza.jpg",
                 "Detalle de la gaza trenzada de la mochila, mostrando el ancho del tejido",
                 1200,
                 1200,
@@ -321,7 +321,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("ÚNICA", 2, True),),
         "imagenes": (
             (
-                "sombrero-vueltiao-superior.webp",
+                "sombrero-vueltiao-superior.jpg",
                 "Sombrero vueltiao visto desde arriba, con el trenzado en zigzag negro y beige de la copa",
                 1200,
                 1200,
@@ -343,7 +343,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("ÚNICA", 1, True),),
         "imagenes": (
             (
-                "hamaca-san-jacinto-extendida.webp",
+                "hamaca-san-jacinto-extendida.jpg",
                 "Hamaca de algodón a rayas en tonos tierra, extendida y colgada entre dos postes de madera",
                 1600,
                 1000,
@@ -366,7 +366,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("ÚNICA", 0, True),),
         "imagenes": (
             (
-                "jarron-raquira-frente.webp",
+                "jarron-raquira-frente.jpg",
                 "Jarrón de barro cocido color terracota con marcas oscuras de horno de leña, sobre fondo neutro",
                 1200,
                 1200,
@@ -389,7 +389,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("ÚNICA", 6, True),),
         "imagenes": (
             (
-                "cinturon-cuero-repujado-detalle.webp",
+                "cinturon-cuero-repujado-detalle.jpg",
                 "Detalle del repujado de hojas en un cinturón de cuero café con hebilla de latón",
                 1200,
                 800,
@@ -410,7 +410,7 @@ PRODUCTOS: tuple[dict, ...] = (
         "variantes": (("ÚNICA", 15, True),),
         "imagenes": (
             (
-                "pulsera-hilo-encerado-conjunto.webp",
+                "pulsera-hilo-encerado-conjunto.jpg",
                 "Tres pulseras de hilo encerado anudado en verde, negro y mostaza, con cierre corredizo",
                 1200,
                 1200,

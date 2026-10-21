@@ -49,6 +49,41 @@ class Settings(BaseSettings):
     # para crear ese rol; después de eso, nada más la usa.
     app_db_password: str
 
+    # Secreto de firma del token del panel (RN-19, ADR-006). Cadena vacía por
+    # omisión para que las herramientas que solo tocan la base —Alembic, la
+    # siembra— no exijan definirlo; la API sí lo valida antes de emitir el
+    # primer token, en app/core/tokens.py. Un valor por omisión real sería un
+    # secreto conocido, que es peor que no tener ninguno.
+    jwt_secret: str = ""
+
+    # Orígenes autorizados para CORS, separados por coma. En desarrollo el
+    # frontend corre en otro puerto que la API, de modo que sin esto el
+    # navegador bloquea toda petición antes de que salga.
+    cors_origenes: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    # Límite de intentos fallidos de inicio de sesión (contrato-api.md, OWASP
+    # A07): 5 por minuto y por cuenta. El de dirección IP es más holgado para
+    # no castigar a una oficina que comparte salida a internet.
+    login_intentos_por_cuenta: int = 5
+    login_intentos_por_ip: int = 20
+    login_ventana_segundos: int = 60
+
+    # Carpeta donde se guardan las imágenes que se cargan desde el panel
+    # (EP-16). Fuera de frontend/public a propósito: esas fotos nacen en
+    # ejecución, no al construir, y nginx sirve public/ desde la imagen del
+    # contenedor. Vacía equivale a la omisión: sin ese cuidado, MEDIA_DIR=
+    # en el .env resolvía a «.» y las imágenes caían en la carpeta de trabajo.
+    media_dir: str = ""
+
+    # RN-22: límites de la carga. 5 MiB es lo que errores.md declara como
+    # ejemplo de `maxBytes`; 1200 px cubre el detalle a doble densidad.
+    imagen_max_bytes: int = 5 * 1024 * 1024
+    imagen_ancho_max: int = 1200
+
+    @property
+    def carpeta_media(self) -> Path:
+        return Path(self.media_dir) if self.media_dir.strip() else RAIZ_REPOSITORIO / "media"
+
 
 @lru_cache
 def obtener_settings() -> Settings:

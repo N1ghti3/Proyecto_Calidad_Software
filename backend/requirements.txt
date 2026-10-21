@@ -3,9 +3,16 @@
 # Versiones fijadas: una base que aquí es una versión y en el servidor es otra
 # es una fuente de fallos que nadie va a buscar ahí (ADR-009).
 #
-# En esta iteración (I-3) solo está implementada la capa de datos. Las
-# dependencias de la API (FastAPI, uvicorn) se agregan cuando exista el código
-# que las use, para no declarar lo que no hay.
+# --- API ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+PyJWT==2.10.1
+# FastAPI la exige para recibir formularios multipart (EP-16, carga de imágenes).
+python-multipart==0.0.20
+
+# --- Imágenes (RN-22) ---
+# Redimensiona, convierte a WebP y descarta los metadatos EXIF al cargar.
+Pillow==11.3.0
 
 # --- Capa de datos ---
 SQLAlchemy==2.0.43

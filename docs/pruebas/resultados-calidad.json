@@ -1,0 +1,99 @@
+{
+  "ejecutado": "2026-10-20T21:38:25+00:00",
+  "api": "http://127.0.0.1:8000/api/v1",
+  "total": 10,
+  "aprobadas": 10,
+  "fallidas": 0,
+  "casos": [
+    {
+      "caso": "PRB-01",
+      "requisito": "REQ-01",
+      "verifica": "El catálogo expone solo productos publicados",
+      "esperado": "El borrador no aparece en el listado ni en el detalle (404); publicados visibles = publicados en el panel",
+      "obtenido": "45 publicados visibles (panel: 45); borrador en listado: no; detalle del borrador: 404",
+      "estado": "APROBADA",
+      "duracion_ms": 73
+    },
+    {
+      "caso": "PRB-02",
+      "requisito": "RNF-02",
+      "verifica": "50 solicitudes simultáneas sobre 10 unidades, por la API (implementación con bloqueo)",
+      "esperado": "10 confirmadas / 40 rechazadas con INSUFFICIENT_STOCK / stock final 0 / 0 errores",
+      "obtenido": "10 confirmadas, 40 rechazadas, stock final 0, 0 errores, 10 descuentos auditados (1413 ms)",
+      "estado": "APROBADA",
+      "duracion_ms": 1529
+    },
+    {
+      "caso": "PRB-03",
+      "requisito": "RNF-02",
+      "verifica": "Misma carga (50 sobre 10) SIN bloqueo de fila: grupo de control, comparado con el mismo arnés CON bloqueo",
+      "esperado": "Sin bloqueo se reproduce la sobreventa; con bloqueo, 10 / 40 / 0",
+      "obtenido": "CON bloqueo: 10 confirmadas, 40 rechazadas, stock final 0 · SIN bloqueo: 50 confirmadas sobre 10 unidades (sobreventa de 40), stock final 9",
+      "estado": "APROBADA",
+      "duracion_ms": 2815
+    },
+    {
+      "caso": "PRB-04",
+      "requisito": "REQ-08",
+      "verifica": "Se rechaza la orden sin autorización de tratamiento de datos (Ley 1581 de 2012)",
+      "esperado": "400 CONSENT_REQUIRED; ninguna orden creada; inventario intacto",
+      "obtenido": "400 CONSENT_REQUIRED; sin el campo: 400; órdenes nuevas: 0; stock 3→3",
+      "estado": "APROBADA",
+      "duracion_ms": 71
+    },
+    {
+      "caso": "PRB-05",
+      "requisito": "REQ-02",
+      "verifica": "Se rechaza una cantidad mayor a la existencia y no se altera el inventario",
+      "esperado": "Rechazo: solicitado 5, disponible 3; stock intacto en 3",
+      "obtenido": "409 INSUFFICIENT_STOCK: solicitado 5, disponible 3; stock final 3",
+      "estado": "APROBADA",
+      "duracion_ms": 10
+    },
+    {
+      "caso": "PRB-06",
+      "requisito": "REQ-03",
+      "verifica": "Atomicidad: si un ítem del carrito falla, no se descuenta ningún otro ni se crea la orden",
+      "esperado": "409 INSUFFICIENT_STOCK; stock del ítem válido sin cambios; sin orden nueva",
+      "obtenido": "409 INSUFFICIENT_STOCK; ítem válido 5→5; órdenes nuevas: 0",
+      "estado": "APROBADA",
+      "duracion_ms": 106
+    },
+    {
+      "caso": "PRB-07",
+      "requisito": "REQ-06",
+      "verifica": "Toda variación de existencias deja registro de auditoría con origen y referencia",
+      "esperado": "Registro 5→3, origen ORDEN, referencia igual al código de la orden",
+      "obtenido": "Registro 5→3, origen ORDEN; referencia a TL-20261020-P2NTS: presente",
+      "estado": "APROBADA",
+      "duracion_ms": 39
+    },
+    {
+      "caso": "PRB-08",
+      "requisito": "REQ-03",
+      "verifica": "Se rechaza un carrito vacío",
+      "esperado": "400 VALIDATION_ERROR en la orden y en la validación del carrito",
+      "obtenido": "Orden: 400 VALIDATION_ERROR (campo items); validación del carrito: 400",
+      "estado": "APROBADA",
+      "duracion_ms": 8
+    },
+    {
+      "caso": "PRB-09",
+      "requisito": "RNF-02",
+      "verifica": "La restricción CHECK (stock >= 0) impide un inventario negativo",
+      "esperado": "La base rechaza la escritura con código 23514; la API responde 400",
+      "obtenido": "Base de datos: rechazo con código 23514; API: 400; stock intacto en 3",
+      "estado": "APROBADA",
+      "duracion_ms": 11
+    },
+    {
+      "caso": "PRB-10",
+      "requisito": "RNF-02 (adicional)",
+      "verifica": "Sin interbloqueos: 40 órdenes simultáneas con las mismas dos tallas en orden alterno",
+      "esperado": "40 confirmadas, 0 errores 500 (el bloqueo se toma ordenado por variant_id, defecto 1 de la sección 9.2)",
+      "obtenido": "40 confirmadas, 0 errores",
+      "estado": "APROBADA",
+      "duracion_ms": 995
+    }
+  ]
+}

@@ -18,6 +18,17 @@ env/
 .eggs/
 .mypy_cache/
 .ruff_cache/
+# Paquetes descargados para instalar a mano; nunca se versionan (llegaron
+# 17 por error en 80b4644).
+*.whl
+
+# Fotografías de demostración que baja database/seeds/descargar_fotos.ps1.
+# Son de Unsplash y se regeneran con el guion: versionarlas engordaría el
+# repositorio con imágenes que el negocio debe reemplazar por las suyas.
+frontend/public/media/productos/*.jpg
+
+# Imágenes cargadas desde el panel (EP-16) en desarrollo; ver MEDIA_DIR.
+/media/
 
 # Pruebas / cobertura (Python)
 .pytest_cache/
